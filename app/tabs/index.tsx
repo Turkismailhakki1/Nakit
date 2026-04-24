@@ -1,5 +1,12 @@
 import React from 'react';
-import { SafeAreaView, ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  SafeAreaView,
+  ScrollView,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
 import { useFinanceData } from '@/hooks/use-finance-data';
 import { useRouter } from 'expo-router';
 
@@ -9,6 +16,16 @@ const formatTRY = (value: number) =>
     currency: 'TRY',
     maximumFractionDigits: 0,
   }).format(value);
+
+const formatCompact = (value: number) => {
+  if (Math.abs(value) >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (Math.abs(value) >= 1_000) {
+    return `${(value / 1_000).toFixed(0)}K`;
+  }
+  return value.toString();
+};
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -25,79 +42,161 @@ export default function DashboardScreen() {
   const overdueReceivables = countOverdue(receivables, today);
   const overduePayables = countOverdue(payables, today);
   const riskDays = buildRiskDays(openingBalance, receivables, payables, today, 30);
+  const netFlow30 = expectedInflow30 - expectedOutflow30;
+
+  const greeting = getGreeting();
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Nakit Akis Dashboard</Text>
-        <Text style={styles.subtitle}>Bugun finansal durumun</Text>
-
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Mevcut Bakiye</Text>
-          <Text style={styles.balanceValue}>{formatTRY(openingBalance)}</Text>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.greeting}>{greeting}</Text>
+            <Text style={styles.headerTitle}>Nakit Akis</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.headerAction}
+            onPress={() => router.push('/tabs/notifications')}>
+            <View style={styles.bellIcon}>
+              <Text style={styles.bellIconText}>!</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.grid}>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>30g Beklenen Giris</Text>
-            <Text style={styles.metricPositive}>{formatTRY(expectedInflow30)}</Text>
+        <View style={styles.balanceHero}>
+          <View style={styles.balanceHeroInner}>
+            <Text style={styles.balanceLabel}>Toplam Bakiye</Text>
+            <Text style={styles.balanceValue}>{formatTRY(openingBalance)}</Text>
+            <View style={styles.balanceTrendRow}>
+              <View style={[styles.trendBadge, netFlow30 >= 0 ? styles.trendPositive : styles.trendNegative]}>
+                <Text style={styles.trendIcon}>{netFlow30 >= 0 ? '\u2191' : '\u2193'}</Text>
+                <Text style={[styles.trendText, netFlow30 >= 0 ? styles.trendTextPositive : styles.trendTextNegative]}>
+                  {netFlow30 >= 0 ? '+' : ''}{formatCompact(netFlow30)} TL 30g
+                </Text>
+              </View>
+            </View>
           </View>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>30g Beklenen Cikis</Text>
-            <Text style={styles.metricNegative}>{formatTRY(expectedOutflow30)}</Text>
+          <View style={styles.balanceDecorCircle1} />
+          <View style={styles.balanceDecorCircle2} />
+        </View>
+
+        <View style={styles.flowRow}>
+          <View style={[styles.flowCard, styles.flowInflow]}>
+            <View style={styles.flowIconWrap}>
+              <Text style={styles.flowIconInflow}>+</Text>
+            </View>
+            <View style={styles.flowTextWrap}>
+              <Text style={styles.flowLabel}>30g Beklenen Giris</Text>
+              <Text style={styles.flowValuePositive}>{formatTRY(expectedInflow30)}</Text>
+            </View>
+          </View>
+          <View style={[styles.flowCard, styles.flowOutflow]}>
+            <View style={styles.flowIconWrap}>
+              <Text style={styles.flowIconOutflow}>-</Text>
+            </View>
+            <View style={styles.flowTextWrap}>
+              <Text style={styles.flowLabel}>30g Beklenen Cikis</Text>
+              <Text style={styles.flowValueNegative}>{formatTRY(expectedOutflow30)}</Text>
+            </View>
           </View>
         </View>
 
         <View style={styles.projectionCard}>
-          <Text style={styles.metricLabel}>30g Kapanis Projeksiyonu</Text>
-          <Text style={styles.projectionValue}>{formatTRY(projectedClosing30)}</Text>
+          <View style={styles.projectionHeader}>
+            <Text style={styles.projectionLabel}>30g Kapanis Projeksiyonu</Text>
+            <View style={[styles.projectionBadge, projectedClosing30 < 0 && styles.projectionBadgeDanger]}>
+              <Text style={[styles.projectionBadgeText, projectedClosing30 < 0 && styles.projectionBadgeTextDanger]}>
+                {projectedClosing30 < 0 ? 'RISK' : 'STABIL'}
+              </Text>
+            </View>
+          </View>
+          <Text style={[styles.projectionValue, projectedClosing30 < 0 && styles.projectionValueDanger]}>
+            {formatTRY(projectedClosing30)}
+          </Text>
+          <View style={styles.projectionBar}>
+            <View style={styles.projectionBarTrack}>
+              <View
+                style={[
+                  styles.projectionBarFill,
+                  projectedClosing30 >= 0 ? styles.projectionBarPositive : styles.projectionBarNegative,
+                  { width: `${Math.min(Math.max((Math.abs(projectedClosing30) / (openingBalance || 1)) * 100, 5), 100)}%` },
+                ]}
+              />
+            </View>
+          </View>
         </View>
 
-        <View style={styles.grid}>
+        <Text style={styles.sectionTitle}>Yaklasan Vadeler</Text>
+        <View style={styles.deadlineRow}>
           <TouchableOpacity
-            style={styles.metricCard}
-            onPress={() => router.push('/tabs/explore?type=receivables&dueSoon=1')}>
-            <Text style={styles.metricLabel}>7g Tahsilat</Text>
-            <Text style={styles.metricCount}>{receivablesDue7d}</Text>
+            style={styles.deadlineCard}
+            onPress={() => router.push('/tabs/explore?type=receivables&dueSoon=1')}
+            activeOpacity={0.7}>
+            <View style={styles.deadlineIconWrap}>
+              <Text style={styles.deadlineIconInflow}>+</Text>
+            </View>
+            <Text style={styles.deadlineLabel}>7g Tahsilat</Text>
+            <Text style={styles.deadlineCount}>{receivablesDue7d}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.metricCard}
-            onPress={() => router.push('/tabs/explore?type=payables&dueSoon=1')}>
-            <Text style={styles.metricLabel}>7g Odeme</Text>
-            <Text style={styles.metricCount}>{payablesDue7d}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.grid}>
-          <TouchableOpacity
-            style={styles.metricCard}
-            onPress={() => router.push('/tabs/explore?type=receivables&overdue=1')}>
-            <Text style={styles.metricLabel}>Geciken Alacak</Text>
-            <Text style={styles.metricWarning}>{overdueReceivables}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.metricCard}
-            onPress={() => router.push('/tabs/explore?type=payables&overdue=1')}>
-            <Text style={styles.metricLabel}>Geciken Odeme</Text>
-            <Text style={styles.metricWarning}>{overduePayables}</Text>
+            style={styles.deadlineCard}
+            onPress={() => router.push('/tabs/explore?type=payables&dueSoon=1')}
+            activeOpacity={0.7}>
+            <View style={styles.deadlineIconWrap}>
+              <Text style={styles.deadlineIconOutflow}>-</Text>
+            </View>
+            <Text style={styles.deadlineLabel}>7g Odeme</Text>
+            <Text style={styles.deadlineCount}>{payablesDue7d}</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.riskCard}>
-          <Text style={styles.riskTitle}>Riskli Gunler</Text>
-          {riskDays.length === 0 ? (
-            <Text style={styles.riskNone}>Riskli gun yok</Text>
-          ) : (
-            riskDays.map((day, index) => (
-              <View key={index} style={styles.riskRow}>
-                <Text style={styles.riskDate}>{day.date}</Text>
-                <Text style={styles.riskAmount}>{formatTRY(day.projectedBalance)}</Text>
-              </View>
-            ))
-          )}
+        <Text style={styles.sectionTitle}>Geciken Kayitlar</Text>
+        <View style={styles.overdueRow}>
+          <TouchableOpacity
+            style={styles.overdueCard}
+            onPress={() => router.push('/tabs/explore?type=receivables&overdue=1')}
+            activeOpacity={0.7}>
+            <View style={[styles.overdueDot, styles.overdueDotWarn]} />
+            <View style={styles.overdueTextWrap}>
+              <Text style={styles.overdueLabel}>Geciken Alacak</Text>
+              <Text style={styles.overdueValueWarn}>{overdueReceivables}</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.overdueCard}
+            onPress={() => router.push('/tabs/explore?type=payables&overdue=1')}
+            activeOpacity={0.7}>
+            <View style={[styles.overdueDot, styles.overdueDotDanger]} />
+            <View style={styles.overdueTextWrap}>
+              <Text style={styles.overdueLabel}>Geciken Odeme</Text>
+              <Text style={styles.overdueValueDanger}>{overduePayables}</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.ctaButton}>
+        {riskDays.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Riskli Gunler</Text>
+            <View style={styles.riskCard}>
+              {riskDays.map((day, index) => (
+                <View
+                  key={index}
+                  style={[styles.riskRow, index > 0 && styles.riskRowBorder]}>
+                  <View style={styles.riskRowLeft}>
+                    <View style={styles.riskDot} />
+                    <Text style={styles.riskDate}>{day.date}</Text>
+                  </View>
+                  <Text style={styles.riskAmount}>{formatTRY(day.projectedBalance)}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        <TouchableOpacity
+          style={styles.ctaButton}
+          onPress={() => router.push('/tabs/cashflow')}
+          activeOpacity={0.8}>
           <Text style={styles.ctaText}>Detayli Nakit Takvimi</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -107,72 +206,244 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F4F6FA' },
-  content: { padding: 16, paddingBottom: 32 },
-  title: { fontSize: 24, fontWeight: '700', color: '#101828' },
-  subtitle: { marginTop: 4, fontSize: 14, color: '#667085', marginBottom: 16 },
+  content: { padding: 20, paddingBottom: 40 },
 
-  balanceCard: {
-    backgroundColor: '#0F62FE',
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  greeting: { fontSize: 14, color: '#667085', fontWeight: '500' },
+  headerTitle: { fontSize: 26, fontWeight: '800', color: '#101828', marginTop: 2 },
+  headerAction: { padding: 8 },
+  bellIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EAECF0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellIconText: { fontSize: 16, fontWeight: '800', color: '#667085' },
+
+  balanceHero: {
+    backgroundColor: '#0C4A6E',
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  balanceHeroInner: { position: 'relative', zIndex: 1 },
+  balanceLabel: { color: '#93C5FD', fontSize: 14, fontWeight: '500', letterSpacing: 0.5 },
+  balanceValue: {
+    color: '#FFFFFF',
+    fontSize: 34,
+    fontWeight: '800',
+    marginTop: 8,
+    letterSpacing: -0.5,
+  },
+  balanceTrendRow: { flexDirection: 'row', marginTop: 12 },
+  trendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    gap: 4,
+  },
+  trendPositive: { backgroundColor: 'rgba(18, 183, 106, 0.2)' },
+  trendNegative: { backgroundColor: 'rgba(240, 68, 56, 0.2)' },
+  trendIcon: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
+  trendText: { fontSize: 12, fontWeight: '700' },
+  trendTextPositive: { color: '#12B76A' },
+  trendTextNegative: { color: '#F04438' },
+  balanceDecorCircle1: {
+    position: 'absolute',
+    top: -30,
+    right: -30,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  balanceDecorCircle2: {
+    position: 'absolute',
+    bottom: -40,
+    right: 40,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+
+  flowRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  flowCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
-  },
-  balanceLabel: { color: '#D6E4FF', fontSize: 14 },
-  balanceValue: { color: 'white', fontSize: 28, fontWeight: '700', marginTop: 6 },
-
-  grid: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  metricCard: {
-    flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 14,
-    padding: 14,
     borderWidth: 1,
     borderColor: '#EAECF0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  metricLabel: { fontSize: 13, color: '#667085' },
-  metricPositive: { marginTop: 8, fontSize: 18, fontWeight: '700', color: '#12B76A' },
-  metricNegative: { marginTop: 8, fontSize: 18, fontWeight: '700', color: '#F04438' },
-  metricCount: { marginTop: 8, fontSize: 24, fontWeight: '700', color: '#101828' },
-  metricWarning: { marginTop: 8, fontSize: 24, fontWeight: '700', color: '#B54708' },
+  flowInflow: { borderLeftWidth: 3, borderLeftColor: '#12B76A' },
+  flowOutflow: { borderLeftWidth: 3, borderLeftColor: '#F04438' },
+  flowIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flowIconInflow: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#12B76A',
+    lineHeight: 36,
+    textAlign: 'center',
+  },
+  flowIconOutflow: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#F04438',
+    lineHeight: 36,
+    textAlign: 'center',
+  },
+  flowTextWrap: { flex: 1 },
+  flowLabel: { fontSize: 12, color: '#667085', fontWeight: '500' },
+  flowValuePositive: { fontSize: 17, fontWeight: '800', color: '#12B76A', marginTop: 4 },
+  flowValueNegative: { fontSize: 17, fontWeight: '800', color: '#F04438', marginTop: 4 },
 
   projectionCard: {
-    backgroundColor: 'white',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
     borderWidth: 1,
     borderColor: '#EAECF0',
+    marginBottom: 20,
   },
-  projectionValue: { marginTop: 8, fontSize: 22, fontWeight: '700', color: '#101828' },
+  projectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  projectionLabel: { fontSize: 13, color: '#667085', fontWeight: '600' },
+  projectionBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: '#E8F5E9',
+  },
+  projectionBadgeDanger: { backgroundColor: '#FEF3F2' },
+  projectionBadgeText: { fontSize: 10, fontWeight: '800', color: '#12B76A', letterSpacing: 0.5 },
+  projectionBadgeTextDanger: { color: '#F04438' },
+  projectionValue: { fontSize: 26, fontWeight: '800', color: '#101828' },
+  projectionValueDanger: { color: '#F04438' },
+  projectionBar: { marginTop: 12 },
+  projectionBarTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F2F4F7',
+    overflow: 'hidden',
+  },
+  projectionBarFill: { height: '100%', borderRadius: 3 },
+  projectionBarPositive: { backgroundColor: '#12B76A' },
+  projectionBarNegative: { backgroundColor: '#F04438' },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#101828',
+    marginBottom: 10,
+    marginTop: 4,
+  },
+
+  deadlineRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
+  deadlineCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#EAECF0',
+    alignItems: 'center',
+    gap: 6,
+  },
+  deadlineIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F4F6FA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deadlineIconInflow: { fontSize: 22, fontWeight: '800', color: '#12B76A' },
+  deadlineIconOutflow: { fontSize: 22, fontWeight: '800', color: '#F04438' },
+  deadlineLabel: { fontSize: 12, color: '#667085', fontWeight: '500' },
+  deadlineCount: { fontSize: 28, fontWeight: '800', color: '#101828' },
+
+  overdueRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
+  overdueCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#EAECF0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  overdueDot: { width: 10, height: 10, borderRadius: 5 },
+  overdueDotWarn: { backgroundColor: '#F59E0B' },
+  overdueDotDanger: { backgroundColor: '#F04438' },
+  overdueTextWrap: { flex: 1 },
+  overdueLabel: { fontSize: 12, color: '#667085', fontWeight: '500' },
+  overdueValueWarn: { fontSize: 22, fontWeight: '800', color: '#B54708', marginTop: 2 },
+  overdueValueDanger: { fontSize: 22, fontWeight: '800', color: '#F04438', marginTop: 2 },
 
   riskCard: {
-    backgroundColor: 'white',
-    borderRadius: 14,
-    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#EAECF0',
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  riskTitle: { fontSize: 16, fontWeight: '700', color: '#101828', marginBottom: 10 },
-  riskNone: { color: '#667085' },
   riskRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F2F4F7',
+    alignItems: 'center',
+    paddingVertical: 10,
   },
-  riskDate: { color: '#344054' },
-  riskAmount: { color: '#F04438', fontWeight: '700' },
+  riskRowBorder: { borderTopWidth: 1, borderTopColor: '#F2F4F7' },
+  riskRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  riskDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#F04438' },
+  riskDate: { fontSize: 14, color: '#344054', fontWeight: '600' },
+  riskAmount: { fontSize: 14, color: '#F04438', fontWeight: '800' },
 
   ctaButton: {
-    backgroundColor: '#101828',
-    borderRadius: 12,
-    paddingVertical: 14,
+    backgroundColor: '#0C4A6E',
+    borderRadius: 14,
+    paddingVertical: 16,
     alignItems: 'center',
   },
-  ctaText: { color: 'white', fontWeight: '600', fontSize: 15 },
+  ctaText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15, letterSpacing: 0.3 },
 });
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Gunaydin';
+  if (hour < 18) return 'Iyi gunler';
+  return 'Iyi aksamlar';
+}
 
 function parseTRDate(dateStr: string) {
   const [day, month, year] = dateStr.split('/').map(Number);
