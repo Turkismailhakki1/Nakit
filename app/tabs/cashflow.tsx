@@ -1,0 +1,193 @@
+import React from 'react';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useFinanceData } from '@/hooks/use-finance-data';
+
+type CashflowDay = {
+  date: string;
+  inflow: number;
+  outflow: number;
+  closing: number;
+};
+
+const formatTRY = (value: number) =>
+  new Intl.NumberFormat('tr-TR', {
+    style: 'currency',
+    currency: 'TRY',
+    maximumFractionDigits: 0,
+  }).format(value);
+
+export default function CashflowScreen() {
+  const { openingBalance, receivables, payables } = useFinanceData();
+  const data = buildCashflowRows(openingBalance, receivables, payables, 7);
+  const riskCount = data.filter((day) => day.closing < 0).length;
+  const firstRiskDay = data.find((day) => day.closing < 0);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.title}>Nakit Akis Takvimi</Text>
+        <Text style={styles.subtitle}>Gunluk giris, cikis ve kapanis bakiyesi</Text>
+
+        <View style={styles.filtersRow}>
+          <TouchableOpacity style={styles.filterChipActive}>
+            <Text style={styles.filterChipTextActive}>7 Gun</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.filterChip}>
+            <Text style={styles.filterChipText}>30 Gun</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.filterChip}>
+            <Text style={styles.filterChipText}>90 Gun</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>Riskli Gun Sayisi</Text>
+          <Text style={styles.summaryValue}>{riskCount}</Text>
+          <Text style={styles.summaryHint}>
+            {firstRiskDay
+              ? `${firstRiskDay.date} tarihinde beklenen bakiye eksiye dusuyor.`
+              : 'Onumuzdeki 7 gunde bakiye eksiye dusmuyor.'}
+          </Text>
+        </View>
+
+        <View style={styles.tableHeader}>
+          <Text style={[styles.headerCell, styles.dateCell]}>Tarih</Text>
+          <Text style={styles.headerCell}>Giris</Text>
+          <Text style={styles.headerCell}>Cikis</Text>
+          <Text style={styles.headerCell}>Kapanis</Text>
+        </View>
+
+        {data.map((day) => {
+          const negative = day.closing < 0;
+          return (
+            <View key={day.date} style={styles.row}>
+              <Text style={[styles.cell, styles.dateCell]}>{day.date}</Text>
+              <Text style={[styles.cell, styles.inflow]}>{formatTRY(day.inflow)}</Text>
+              <Text style={[styles.cell, styles.outflow]}>{formatTRY(day.outflow)}</Text>
+              <Text style={[styles.cell, negative ? styles.negative : styles.closing]}>
+                {formatTRY(day.closing)}
+              </Text>
+            </View>
+          );
+        })}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F4F6FA' },
+  content: { padding: 16, paddingBottom: 30 },
+  title: { fontSize: 24, fontWeight: '700', color: '#101828' },
+  subtitle: { marginTop: 4, marginBottom: 14, color: '#667085' },
+
+  filtersRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  filterChip: {
+    borderWidth: 1,
+    borderColor: '#D0D5DD',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+  },
+  filterChipActive: {
+    borderWidth: 1,
+    borderColor: '#0F62FE',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#E8F0FF',
+  },
+  filterChipText: { color: '#344054', fontWeight: '600' },
+  filterChipTextActive: { color: '#0F62FE', fontWeight: '700' },
+
+  summaryCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EAECF0',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+  },
+  summaryLabel: { color: '#667085', fontSize: 13 },
+  summaryValue: { fontSize: 28, color: '#F04438', fontWeight: '800', marginTop: 2 },
+  summaryHint: { color: '#475467', marginTop: 4 },
+
+  tableHeader: {
+    flexDirection: 'row',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E4E7EC',
+  },
+  headerCell: { flex: 1, color: '#667085', fontSize: 12, fontWeight: '700' },
+  row: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2F4F7',
+    backgroundColor: '#FFFFFF',
+  },
+  cell: { flex: 1, color: '#101828', fontSize: 12, fontWeight: '600' },
+  dateCell: { flex: 0.8 },
+  inflow: { color: '#12B76A' },
+  outflow: { color: '#F04438' },
+  closing: { color: '#101828' },
+  negative: { color: '#F04438', fontWeight: '800' },
+});
+
+function parseTRDate(dateStr: string) {
+  const [day, month, year] = dateStr.split('/').map(Number);
+  if (!day || !month || !year) return null;
+  return new Date(year, month - 1, day);
+}
+
+function addDays(date: Date, dayCount: number) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + dayCount);
+  return result;
+}
+
+function buildCashflowRows(
+  openingBalance: number,
+  receivables: { amount: number; dueDate: string }[],
+  payables: { amount: number; dueDate: string }[],
+  dayCount: number
+) {
+  const rows: CashflowDay[] = [];
+  const today = new Date();
+  let rolling = openingBalance;
+
+  for (let i = 0; i < dayCount; i += 1) {
+    const dayDate = addDays(today, i);
+    const inflow = receivables.reduce((sum, item) => {
+      const date = parseTRDate(item.dueDate);
+      if (!date) return sum;
+      return isSameDay(dayDate, date) ? sum + item.amount : sum;
+    }, 0);
+    const outflow = payables.reduce((sum, item) => {
+      const date = parseTRDate(item.dueDate);
+      if (!date) return sum;
+      return isSameDay(dayDate, date) ? sum + item.amount : sum;
+    }, 0);
+
+    rolling += inflow - outflow;
+    rows.push({
+      date: dayDate.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' }),
+      inflow,
+      outflow,
+      closing: rolling,
+    });
+  }
+
+  return rows;
+}
+
+function isSameDay(first: Date, second: Date) {
+  return (
+    first.getFullYear() === second.getFullYear() &&
+    first.getMonth() === second.getMonth() &&
+    first.getDate() === second.getDate()
+  );
+}
