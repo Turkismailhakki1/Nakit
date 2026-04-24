@@ -29,7 +29,7 @@ const formatCompact = (value: number) => {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { openingBalance, receivables, payables } = useFinanceData();
+  const { openingBalance, receivables, payables, partners, withdrawals } = useFinanceData();
   const today = new Date();
   const in7Days = addDays(today, 7);
   const in30Days = addDays(today, 30);
@@ -43,6 +43,7 @@ export default function DashboardScreen() {
   const overduePayables = countOverdue(payables, today);
   const riskDays = buildRiskDays(openingBalance, receivables, payables, today, 30);
   const netFlow30 = expectedInflow30 - expectedOutflow30;
+  const totalWithdrawals = withdrawals.reduce((sum, w) => sum + w.amount, 0);
 
   const greeting = getGreeting();
 
@@ -52,7 +53,7 @@ export default function DashboardScreen() {
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.headerTitle}>Nakit Akis</Text>
+            <Text style={styles.headerTitle}>Nakit Akış</Text>
           </View>
           <TouchableOpacity
             style={styles.headerAction}
@@ -86,7 +87,7 @@ export default function DashboardScreen() {
               <Text style={styles.flowIconInflow}>+</Text>
             </View>
             <View style={styles.flowTextWrap}>
-              <Text style={styles.flowLabel}>30g Beklenen Giris</Text>
+              <Text style={styles.flowLabel}>30g Beklenen Giriş</Text>
               <Text style={styles.flowValuePositive}>{formatTRY(expectedInflow30)}</Text>
             </View>
           </View>
@@ -95,7 +96,7 @@ export default function DashboardScreen() {
               <Text style={styles.flowIconOutflow}>-</Text>
             </View>
             <View style={styles.flowTextWrap}>
-              <Text style={styles.flowLabel}>30g Beklenen Cikis</Text>
+              <Text style={styles.flowLabel}>30g Beklenen Çıkış</Text>
               <Text style={styles.flowValueNegative}>{formatTRY(expectedOutflow30)}</Text>
             </View>
           </View>
@@ -103,10 +104,10 @@ export default function DashboardScreen() {
 
         <View style={styles.projectionCard}>
           <View style={styles.projectionHeader}>
-            <Text style={styles.projectionLabel}>30g Kapanis Projeksiyonu</Text>
+            <Text style={styles.projectionLabel}>30g Kapanış Projeksiyonu</Text>
             <View style={[styles.projectionBadge, projectedClosing30 < 0 && styles.projectionBadgeDanger]}>
               <Text style={[styles.projectionBadgeText, projectedClosing30 < 0 && styles.projectionBadgeTextDanger]}>
-                {projectedClosing30 < 0 ? 'RISK' : 'STABIL'}
+                {projectedClosing30 < 0 ? 'RİSK' : 'STABİL'}
               </Text>
             </View>
           </View>
@@ -126,7 +127,7 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Yaklasan Vadeler</Text>
+        <Text style={styles.sectionTitle}>Yaklaşan Vadeler</Text>
         <View style={styles.deadlineRow}>
           <TouchableOpacity
             style={styles.deadlineCard}
@@ -145,12 +146,12 @@ export default function DashboardScreen() {
             <View style={styles.deadlineIconWrap}>
               <Text style={styles.deadlineIconOutflow}>-</Text>
             </View>
-            <Text style={styles.deadlineLabel}>7g Odeme</Text>
+            <Text style={styles.deadlineLabel}>7g Ödeme</Text>
             <Text style={styles.deadlineCount}>{payablesDue7d}</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionTitle}>Geciken Kayitlar</Text>
+        <Text style={styles.sectionTitle}>Geciken Kayıtlar</Text>
         <View style={styles.overdueRow}>
           <TouchableOpacity
             style={styles.overdueCard}
@@ -168,15 +169,34 @@ export default function DashboardScreen() {
             activeOpacity={0.7}>
             <View style={[styles.overdueDot, styles.overdueDotDanger]} />
             <View style={styles.overdueTextWrap}>
-              <Text style={styles.overdueLabel}>Geciken Odeme</Text>
+              <Text style={styles.overdueLabel}>Geciken Ödeme</Text>
               <Text style={styles.overdueValueDanger}>{overduePayables}</Text>
             </View>
           </TouchableOpacity>
         </View>
 
+        {partners.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Ortak Çekimleri</Text>
+            <TouchableOpacity
+              style={styles.partnerSummaryCard}
+              onPress={() => router.push('/tabs/partners')}
+              activeOpacity={0.7}>
+              <View style={styles.partnerSummaryLeft}>
+                <Text style={styles.partnerSummaryLabel}>Toplam Çekim</Text>
+                <Text style={styles.partnerSummaryValue}>{formatTRY(totalWithdrawals)}</Text>
+              </View>
+              <View style={styles.partnerSummaryRight}>
+                <Text style={styles.partnerCountValue}>{partners.length}</Text>
+                <Text style={styles.partnerCountLabel}>Ortak</Text>
+              </View>
+            </TouchableOpacity>
+          </>
+        )}
+
         {riskDays.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Riskli Gunler</Text>
+            <Text style={styles.sectionTitle}>Riskli Günler</Text>
             <View style={styles.riskCard}>
               {riskDays.map((day, index) => (
                 <View
@@ -197,7 +217,7 @@ export default function DashboardScreen() {
           style={styles.ctaButton}
           onPress={() => router.push('/tabs/cashflow')}
           activeOpacity={0.8}>
-          <Text style={styles.ctaText}>Detayli Nakit Takvimi</Text>
+          <Text style={styles.ctaText}>Detaylı Nakit Takvimi</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -409,6 +429,24 @@ const styles = StyleSheet.create({
   overdueValueWarn: { fontSize: 22, fontWeight: '800', color: '#B54708', marginTop: 2 },
   overdueValueDanger: { fontSize: 22, fontWeight: '800', color: '#F04438', marginTop: 2 },
 
+  partnerSummaryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#EAECF0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  partnerSummaryLeft: { flex: 1 },
+  partnerSummaryLabel: { fontSize: 12, color: '#667085', fontWeight: '500' },
+  partnerSummaryValue: { fontSize: 20, fontWeight: '800', color: '#0C4A6E', marginTop: 4 },
+  partnerSummaryRight: { alignItems: 'center' },
+  partnerCountValue: { fontSize: 24, fontWeight: '800', color: '#101828' },
+  partnerCountLabel: { fontSize: 11, color: '#667085', fontWeight: '500' },
+
   riskCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -440,9 +478,9 @@ const styles = StyleSheet.create({
 
 function getGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Gunaydin';
-  if (hour < 18) return 'Iyi gunler';
-  return 'Iyi aksamlar';
+  if (hour < 12) return 'Günaydın';
+  if (hour < 18) return 'İyi günler';
+  return 'İyi akşamlar';
 }
 
 function parseTRDate(dateStr: string) {

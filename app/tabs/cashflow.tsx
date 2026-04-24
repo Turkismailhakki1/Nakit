@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFinanceData } from '@/hooks/use-finance-data';
 
@@ -9,6 +9,8 @@ type CashflowDay = {
   closing: number;
 };
 
+type DayRange = 7 | 30 | 90;
+
 const formatTRY = (value: number) =>
   new Intl.NumberFormat('tr-TR', {
     style: 'currency',
@@ -18,43 +20,52 @@ const formatTRY = (value: number) =>
 
 export default function CashflowScreen() {
   const { openingBalance, receivables, payables } = useFinanceData();
-  const data = buildCashflowRows(openingBalance, receivables, payables, 7);
+  const [dayRange, setDayRange] = useState<DayRange>(7);
+
+  const data = buildCashflowRows(openingBalance, receivables, payables, dayRange);
   const riskCount = data.filter((day) => day.closing < 0).length;
   const firstRiskDay = data.find((day) => day.closing < 0);
+
+  const ranges: { label: string; value: DayRange }[] = [
+    { label: '7 Gün', value: 7 },
+    { label: '30 Gün', value: 30 },
+    { label: '90 Gün', value: 90 },
+  ];
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Nakit Akis Takvimi</Text>
-        <Text style={styles.subtitle}>Gunluk giris, cikis ve kapanis bakiyesi</Text>
+        <Text style={styles.title}>Nakit Akış Takvimi</Text>
+        <Text style={styles.subtitle}>Günlük giriş, çıkış ve kapanış bakiyesi</Text>
 
         <View style={styles.filtersRow}>
-          <TouchableOpacity style={styles.filterChipActive}>
-            <Text style={styles.filterChipTextActive}>7 Gun</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterChip}>
-            <Text style={styles.filterChipText}>30 Gun</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterChip}>
-            <Text style={styles.filterChipText}>90 Gun</Text>
-          </TouchableOpacity>
+          {ranges.map((range) => (
+            <TouchableOpacity
+              key={range.value}
+              style={dayRange === range.value ? styles.filterChipActive : styles.filterChip}
+              onPress={() => setDayRange(range.value)}>
+              <Text style={dayRange === range.value ? styles.filterChipTextActive : styles.filterChipText}>
+                {range.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Riskli Gun Sayisi</Text>
+          <Text style={styles.summaryLabel}>Riskli Gün Sayısı</Text>
           <Text style={styles.summaryValue}>{riskCount}</Text>
           <Text style={styles.summaryHint}>
             {firstRiskDay
-              ? `${firstRiskDay.date} tarihinde beklenen bakiye eksiye dusuyor.`
-              : 'Onumuzdeki 7 gunde bakiye eksiye dusmuyor.'}
+              ? `${firstRiskDay.date} tarihinde beklenen bakiye eksiye düşüyor.`
+              : `Önümüzdeki ${dayRange} günde bakiye eksiye düşmüyor.`}
           </Text>
         </View>
 
         <View style={styles.tableHeader}>
           <Text style={[styles.headerCell, styles.dateCell]}>Tarih</Text>
-          <Text style={styles.headerCell}>Giris</Text>
-          <Text style={styles.headerCell}>Cikis</Text>
-          <Text style={styles.headerCell}>Kapanis</Text>
+          <Text style={styles.headerCell}>Giriş</Text>
+          <Text style={styles.headerCell}>Çıkış</Text>
+          <Text style={styles.headerCell}>Kapanış</Text>
         </View>
 
         {data.map((day) => {

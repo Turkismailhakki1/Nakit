@@ -12,13 +12,20 @@ import {
 import { useRouter } from 'expo-router';
 import { useFinanceData } from '@/hooks/use-finance-data';
 
-const DOC_TYPES = ['Cek', 'Senet', 'Fatura'] as const;
+const DOC_TYPES = ['Çek', 'Senet', 'Fatura'] as const;
 type DocType = (typeof DOC_TYPES)[number];
+
+function formatDatePicker(text: string): string {
+  const digits = text.replace(/\D/g, '');
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+}
 
 export default function ReceivableFormScreen() {
   const router = useRouter();
   const { addReceivable } = useFinanceData();
-  const [docType, setDocType] = useState<DocType>('Cek');
+  const [docType, setDocType] = useState<DocType>('Çek');
   const [customerName, setCustomerName] = useState('');
   const [documentNo, setDocumentNo] = useState('');
   const [amount, setAmount] = useState('');
@@ -29,7 +36,7 @@ export default function ReceivableFormScreen() {
   const onSave = () => {
     const parsedAmount = Number(amount.replace(',', '.'));
     if (!customerName.trim() || !parsedAmount || !dueDate.trim()) {
-      Alert.alert('Eksik bilgi', 'Musteri, tutar ve vade tarihi alanlarini doldur.');
+      Alert.alert('Eksik bilgi', 'Müşteri, tutar ve vade tarihi alanlarını doldurun.');
       return;
     }
 
@@ -49,7 +56,7 @@ export default function ReceivableFormScreen() {
     setDueDate('');
     setAccountName('');
     setNote('');
-    Alert.alert('Kaydedildi', 'Alacak basariyla eklendi.');
+    Alert.alert('Kaydedildi', 'Alacak başarıyla eklendi.');
     router.push('/tabs');
   };
 
@@ -57,10 +64,10 @@ export default function ReceivableFormScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Alacak Ekle</Text>
-        <Text style={styles.subtitle}>Cek, senet ve fatura tahsilatlarini kaydet</Text>
+        <Text style={styles.subtitle}>Çek, senet ve fatura tahsilatlarını kaydedin</Text>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Belge Turu</Text>
+          <Text style={styles.label}>Belge Türü</Text>
           <View style={styles.row}>
             {DOC_TYPES.map((type) => {
               const active = type === docType;
@@ -77,9 +84,9 @@ export default function ReceivableFormScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Musteri/Firma</Text>
+          <Text style={styles.label}>Müşteri / Firma</Text>
           <TextInput
-            placeholder="Orn: ABC Otomotiv A.S."
+            placeholder="Örn: ABC Otomotiv A.Ş."
             placeholderTextColor="#98A2B3"
             style={styles.input}
             value={customerName}
@@ -90,7 +97,7 @@ export default function ReceivableFormScreen() {
         <View style={styles.section}>
           <Text style={styles.label}>Belge No</Text>
           <TextInput
-            placeholder="Orn: CK-2026-00124"
+            placeholder="Örn: ÇK-2026-00124"
             placeholderTextColor="#98A2B3"
             style={styles.input}
             value={documentNo}
@@ -116,8 +123,10 @@ export default function ReceivableFormScreen() {
               placeholder="GG/AA/YYYY"
               placeholderTextColor="#98A2B3"
               style={styles.input}
+              keyboardType="numeric"
+              maxLength={10}
               value={dueDate}
-              onChangeText={setDueDate}
+              onChangeText={(text) => setDueDate(formatDatePicker(text))}
             />
           </View>
         </View>
@@ -125,7 +134,7 @@ export default function ReceivableFormScreen() {
         <View style={styles.section}>
           <Text style={styles.label}>Tahsil Edilecek Hesap</Text>
           <TextInput
-            placeholder="Orn: Garanti TL"
+            placeholder="Örn: Garanti TL"
             placeholderTextColor="#98A2B3"
             style={styles.input}
             value={accountName}
@@ -136,7 +145,7 @@ export default function ReceivableFormScreen() {
         <View style={styles.section}>
           <Text style={styles.label}>Not (Opsiyonel)</Text>
           <TextInput
-            placeholder="Ek aciklama"
+            placeholder="Ek açıklama"
             placeholderTextColor="#98A2B3"
             style={[styles.input, styles.textArea]}
             multiline
@@ -147,7 +156,7 @@ export default function ReceivableFormScreen() {
         </View>
 
         <TouchableOpacity style={styles.primaryButton} onPress={onSave}>
-          <Text style={styles.primaryButtonText}>Alacagi Kaydet</Text>
+          <Text style={styles.primaryButtonText}>Alacağı Kaydet</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

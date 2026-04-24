@@ -75,8 +75,8 @@ export default function RecordsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Kayitlar</Text>
-        <Text style={styles.subtitle}>Eklenen alacak ve odemeleri buradan yonet</Text>
+        <Text style={styles.title}>Kayıtlar</Text>
+        <Text style={styles.subtitle}>Eklenen alacak ve ödemeleri buradan yönetin</Text>
 
         <TextInput
           style={styles.searchInput}
@@ -91,7 +91,7 @@ export default function RecordsScreen() {
             style={[styles.filterChip, activeType === 'all' && styles.filterChipActive]}
             onPress={() => setActiveType('all')}>
             <Text style={[styles.filterChipText, activeType === 'all' && styles.filterChipTextActive]}>
-              Tumu
+              Tümü
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -106,14 +106,14 @@ export default function RecordsScreen() {
             style={[styles.filterChip, activeType === 'payables' && styles.filterChipActive]}
             onPress={() => setActiveType('payables')}>
             <Text style={[styles.filterChipText, activeType === 'payables' && styles.filterChipTextActive]}>
-              Odeme
+              Ödeme
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.filterChip, dueSoonOnly && styles.filterChipWarn]}
             onPress={() => setDueSoonOnly((prev) => !prev)}>
             <Text style={[styles.filterChipText, dueSoonOnly && styles.filterChipWarnText]}>
-              7g Yaklasan
+              7g Yaklaşan
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -136,10 +136,10 @@ export default function RecordsScreen() {
                 sortByAmount !== 'none' && styles.filterChipTextActive,
               ]}>
               {sortByAmount === 'none'
-                ? 'Tutar Sirala'
+                ? 'Tutar Sırala'
                 : sortByAmount === 'desc'
-                  ? 'Tutar: Buyuk-Kucuk'
-                  : 'Tutar: Kucuk-Buyuk'}
+                  ? 'Tutar: Büyük-Küçük'
+                  : 'Tutar: Küçük-Büyük'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -148,7 +148,7 @@ export default function RecordsScreen() {
           <>
             <Text style={styles.sectionTitle}>Alacaklar ({filteredReceivables.length})</Text>
             {filteredReceivables.length === 0 ? (
-              <Text style={styles.emptyText}>Kriterlere uygun alacak kaydi yok.</Text>
+              <Text style={styles.emptyText}>Kriterlere uygun alacak kaydı yok.</Text>
             ) : (
               filteredReceivables.map((item) => (
                 <View key={item.id} style={styles.card}>
@@ -165,8 +165,8 @@ export default function RecordsScreen() {
                   <TouchableOpacity
                     style={styles.deleteButton}
                     onPress={() =>
-                      Alert.alert('Kaydi Sil', 'Bu alacak kaydi silinsin mi?', [
-                        { text: 'Vazgec', style: 'cancel' },
+                      Alert.alert('Kaydı Sil', 'Bu alacak kaydı silinsin mi?', [
+                        { text: 'Vazgeç', style: 'cancel' },
                         { text: 'Sil', style: 'destructive', onPress: () => removeReceivable(item.id) },
                       ])
                     }>
@@ -180,9 +180,9 @@ export default function RecordsScreen() {
 
         {(activeType === 'all' || activeType === 'payables') && (
           <>
-            <Text style={styles.sectionTitle}>Odemeler ({filteredPayables.length})</Text>
+            <Text style={styles.sectionTitle}>Ödemeler ({filteredPayables.length})</Text>
             {filteredPayables.length === 0 ? (
-              <Text style={styles.emptyText}>Kriterlere uygun odeme kaydi yok.</Text>
+              <Text style={styles.emptyText}>Kriterlere uygun ödeme kaydı yok.</Text>
             ) : (
               filteredPayables.map((item) => (
                 <View key={item.id} style={styles.card}>
@@ -191,7 +191,8 @@ export default function RecordsScreen() {
                     <Text style={styles.amountNegative}>{formatTRY(item.amount)}</Text>
                   </View>
                   <Text style={styles.meta}>
-                    {item.category} • Oncelik: {item.priority}
+                    {item.category} • Öncelik: {item.priority}
+                    {item.recurring && item.recurring !== 'Yok' ? ` • ${item.recurring}` : ''}
                   </Text>
                   <Text style={styles.meta}>
                     Vade: {item.dueDate} • Hesap: {item.accountName}
@@ -199,8 +200,8 @@ export default function RecordsScreen() {
                   <TouchableOpacity
                     style={styles.deleteButton}
                     onPress={() =>
-                      Alert.alert('Kaydi Sil', 'Bu odeme kaydi silinsin mi?', [
-                        { text: 'Vazgec', style: 'cancel' },
+                      Alert.alert('Kaydı Sil', 'Bu ödeme kaydı silinsin mi?', [
+                        { text: 'Vazgeç', style: 'cancel' },
                         { text: 'Sil', style: 'destructive', onPress: () => removePayable(item.id) },
                       ])
                     }>
