@@ -29,7 +29,7 @@ const formatCompact = (value: number) => {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { openingBalance, initialBalance, receivables, payables, partners, withdrawals, cashEntries } = useFinanceData();
+  const { openingBalance, baslangicBakiyesi, receivables, payables, partners, withdrawals, cashEntries } = useFinanceData();
   const today = new Date();
   const in7Days = addDays(today, 7);
   const in30Days = addDays(today, 30);
@@ -184,7 +184,7 @@ export default function DashboardScreen() {
           activeOpacity={0.7}>
           <View style={styles.kasaRow}>
             <Text style={styles.kasaLabel}>Başlangıç Bakiyesi</Text>
-            <Text style={styles.kasaValue}>{formatTRY(initialBalance)}</Text>
+            <Text style={styles.kasaValue}>{formatTRY(baslangicBakiyesi)}</Text>
           </View>
           <View style={styles.kasaRow}>
             <Text style={styles.kasaLabelGreen}>+ Nakit Giriş</Text>

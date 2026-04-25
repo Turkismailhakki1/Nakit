@@ -32,8 +32,8 @@ const EXPENSE_CATEGORIES = ['Kasa Çıkışı', 'Acil Ödeme', 'Personel Avans',
 
 export default function KasaScreen() {
   const {
-    initialBalance,
-    setInitialBalance,
+    baslangicBakiyesi,
+    setBaslangicBakiyesi,
     openingBalance,
     withdrawals,
     cashEntries,
@@ -42,21 +42,32 @@ export default function KasaScreen() {
   } = useFinanceData();
 
   const [activeTab, setActiveTab] = useState<Tab>('overview');
-  const [editingBalance, setEditingBalance] = useState(false);
-  const [balanceInput, setBalanceInput] = useState(initialBalance.toString());
 
   const totalWithdrawals = withdrawals.reduce((sum, w) => sum + w.amount, 0);
   const totalIncome = cashEntries.filter((e) => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
   const totalExpense = cashEntries.filter((e) => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
 
-  const saveBalance = () => {
-    const parsed = Number(balanceInput.replace(/\./g, '').replace(',', '.'));
-    if (!parsed || parsed < 0) {
-      Alert.alert('Hata', 'Geçerli bir tutar girin.');
-      return;
-    }
-    setInitialBalance(parsed);
-    setEditingBalance(false);
+  const handleEditBalance = () => {
+    Alert.prompt(
+      'Başlangıç Bakiyesi',
+      'Kasada bulunan ilk tutarı girin:',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Kaydet',
+          onPress: (text) => {
+            const parsed = Number((text || '').replace(/\./g, '').replace(',', '.'));
+            if (!parsed || parsed < 0) {
+              Alert.alert('Hata', 'Geçerli bir tutar girin.');
+              return;
+            }
+            setBaslangicBakiyesi(parsed);
+          },
+        },
+      ],
+      'plain-text',
+      baslangicBakiyesi.toString()
+    );
   };
 
   return (
@@ -78,32 +89,11 @@ export default function KasaScreen() {
                   <Text style={styles.ibLabel}>Başlangıç Bakiyesi</Text>
                   <Text style={styles.ibHint}>Kasada bulunan ilk tutar</Text>
                 </View>
-                {!editingBalance ? (
-                  <TouchableOpacity style={styles.ibEditButton} onPress={() => { setBalanceInput(initialBalance.toString()); setEditingBalance(true); }}>
-                    <Text style={styles.ibEditButtonText}>Düzenle</Text>
-                  </TouchableOpacity>
-                ) : null}
+                <TouchableOpacity style={styles.ibEditButton} onPress={handleEditBalance}>
+                  <Text style={styles.ibEditButtonText}>Düzenle</Text>
+                </TouchableOpacity>
               </View>
-              {editingBalance ? (
-                <View style={styles.ibEditRow}>
-                  <TextInput
-                    style={styles.ibInput}
-                    keyboardType="numeric"
-                    value={balanceInput}
-                    onChangeText={setBalanceInput}
-                    placeholder="Tutar girin"
-                    placeholderTextColor="#98A2B3"
-                  />
-                  <TouchableOpacity style={styles.ibSaveButton} onPress={saveBalance}>
-                    <Text style={styles.ibSaveButtonText}>Kaydet</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.ibCancelButton} onPress={() => setEditingBalance(false)}>
-                    <Text style={styles.ibCancelButtonText}>Vazgeç</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <Text style={styles.ibValue}>{formatTRY(initialBalance)}</Text>
-              )}
+              <Text style={styles.ibValue}>{formatTRY(baslangicBakiyesi)}</Text>
             </View>
 
             <View style={styles.summaryRow}>
@@ -121,7 +111,7 @@ export default function KasaScreen() {
               <Text style={styles.breakdownTitle}>Bakiye Hesaplama</Text>
               <View style={styles.breakdownRow}>
                 <Text style={styles.breakdownLabel}>Başlangıç Bakiyesi</Text>
-                <Text style={styles.breakdownValue}>{formatTRY(initialBalance)}</Text>
+                <Text style={styles.breakdownValue}>{formatTRY(baslangicBakiyesi)}</Text>
               </View>
               <View style={styles.breakdownRow}>
                 <Text style={styles.breakdownLabelGreen}>+ Nakit Giriş</Text>
@@ -346,35 +336,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F0FF',
   },
   ibEditButtonText: { color: '#0F62FE', fontWeight: '700', fontSize: 13 },
-  ibEditRow: { flexDirection: 'row', gap: 8, marginTop: 12, alignItems: 'center' },
-  ibInput: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#D0D5DD',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#101828',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  ibSaveButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#0C4A6E',
-  },
-  ibSaveButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
-  ibCancelButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#D0D5DD',
-    backgroundColor: '#FFFFFF',
-  },
-  ibCancelButtonText: { color: '#344054', fontWeight: '700', fontSize: 13 },
   ibValue: { fontSize: 22, fontWeight: '800', color: '#101828', marginTop: 8 },
 
   summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },

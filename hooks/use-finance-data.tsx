@@ -49,8 +49,8 @@ export type CashEntry = {
 };
 
 type FinanceContextValue = {
-  initialBalance: number;
-  setInitialBalance: (amount: number) => void;
+  baslangicBakiyesi: number;
+  setBaslangicBakiyesi: (amount: number) => void;
   openingBalance: number;
   receivables: Receivable[];
   payables: Payable[];
@@ -143,41 +143,38 @@ const initialWithdrawals: Withdrawal[] = [
 ];
 
 export function FinanceDataProvider({ children }: { children: React.ReactNode }) {
-  const [initialBalance, setInitialBalanceRaw] = useState(980000);
+  const [baslangicBakiyesi, setBaslangicBakiyesi] = useState(980000);
   const [receivables, setReceivables] = useState<Receivable[]>(initialReceivables);
   const [payables, setPayables] = useState<Payable[]>(initialPayables);
   const [partners, setPartners] = useState<Partner[]>(initialPartners);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(initialWithdrawals);
   const [cashEntries, setCashEntries] = useState<CashEntry[]>([]);
 
-  const totalWithdrawals = useMemo(
+  const toplamOrtakCekimleri = useMemo(
     () => withdrawals.reduce((sum, w) => sum + w.amount, 0),
     [withdrawals]
   );
 
-  const totalCashIncome = useMemo(
+  const toplamNakitGiris = useMemo(
     () => cashEntries.filter((e) => e.type === 'income').reduce((sum, e) => sum + e.amount, 0),
     [cashEntries]
   );
 
-  const totalCashExpense = useMemo(
+  const toplamNakitCikis = useMemo(
     () => cashEntries.filter((e) => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0),
     [cashEntries]
   );
 
+  // openingBalance = başlangıç bakiyesi - ortak çekimleri + nakit girişler - nakit çıkışlar
   const openingBalance = useMemo(
-    () => initialBalance - totalWithdrawals + totalCashIncome - totalCashExpense,
-    [initialBalance, totalWithdrawals, totalCashIncome, totalCashExpense]
+    () => baslangicBakiyesi - toplamOrtakCekimleri + toplamNakitGiris - toplamNakitCikis,
+    [baslangicBakiyesi, toplamOrtakCekimleri, toplamNakitGiris, toplamNakitCikis]
   );
-
-  const setInitialBalance = (amount: number) => {
-    setInitialBalanceRaw(amount);
-  };
 
   const value = useMemo<FinanceContextValue>(
     () => ({
-      initialBalance,
-      setInitialBalance,
+      baslangicBakiyesi,
+      setBaslangicBakiyesi,
       openingBalance,
       receivables,
       payables,
@@ -216,7 +213,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         setCashEntries((prev) => prev.filter((item) => item.id !== id));
       },
     }),
-    [initialBalance, openingBalance, receivables, payables, partners, withdrawals, cashEntries]
+    [baslangicBakiyesi, openingBalance, receivables, payables, partners, withdrawals, cashEntries]
   );
 
   return <FinanceDataContext.Provider value={value}>{children}</FinanceDataContext.Provider>;
