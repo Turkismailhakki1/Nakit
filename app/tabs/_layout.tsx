@@ -24,13 +24,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="kasa"
-        options={{
-          title: 'Kasa',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="explore"
         options={{
           title: 'Kayıtlar',
@@ -49,13 +42,6 @@ export default function TabLayout() {
         options={{
           title: 'Ödeme',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="creditcard.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="partners"
-        options={{
-          title: 'Ortaklar',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chevron.right" color={color} />,
         }}
       />
       <Tabs.Screen

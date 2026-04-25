@@ -12,7 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useFinanceData } from '@/hooks/use-finance-data';
 
-const CATEGORIES = ['Maaş', 'Vergi', 'Kira', 'Tedarikçi', 'Fatura', 'Yakıt/Araç', 'Diğer'] as const;
+const CATEGORIES = ['Maaş', 'Vergi', 'Kira', 'Tedarikçi', 'Fatura', 'Yakıt/Araç', 'Ortak Çekimi', 'Diğer'] as const;
 type Priority = 'Düşük' | 'Orta' | 'Yüksek' | 'Kritik';
 const PRIORITIES: Priority[] = ['Düşük', 'Orta', 'Yüksek', 'Kritik'];
 type RecurringType = 'Yok' | 'Haftalık' | 'Aylık';

@@ -23,50 +23,15 @@ export type Payable = {
   recurring?: 'Yok' | 'Haftalık' | 'Aylık';
 };
 
-export type Partner = {
-  id: string;
-  name: string;
-  role: string;
-  phone: string;
-};
-
-export type Withdrawal = {
-  id: string;
-  partnerId: string;
-  partnerName: string;
-  amount: number;
-  date: string; // DD/MM/YYYY
-  description: string;
-};
-
-export type CashEntry = {
-  id: string;
-  type: 'income' | 'expense';
-  amount: number;
-  date: string; // DD/MM/YYYY
-  description: string;
-  category: string;
-};
-
 type FinanceContextValue = {
-  baslangicBakiyesi: number;
-  setBaslangicBakiyesi: (amount: number) => void;
   openingBalance: number;
+  setOpeningBalance: (amount: number) => void;
   receivables: Receivable[];
   payables: Payable[];
-  partners: Partner[];
-  withdrawals: Withdrawal[];
-  cashEntries: CashEntry[];
   addReceivable: (input: Omit<Receivable, 'id'>) => void;
   addPayable: (input: Omit<Payable, 'id'>) => void;
   removeReceivable: (id: string) => void;
   removePayable: (id: string) => void;
-  addPartner: (input: Omit<Partner, 'id'>) => void;
-  removePartner: (id: string) => void;
-  addWithdrawal: (input: Omit<Withdrawal, 'id'>) => void;
-  removeWithdrawal: (id: string) => void;
-  addCashEntry: (input: Omit<CashEntry, 'id'>) => void;
-  removeCashEntry: (id: string) => void;
 };
 
 const FinanceDataContext = createContext<FinanceContextValue | null>(null);
@@ -116,71 +81,17 @@ const initialPayables: Payable[] = [
   },
 ];
 
-const initialPartners: Partner[] = [
-  {
-    id: 'pt-1',
-    name: 'Ahmet Yılmaz',
-    role: 'Ortak',
-    phone: '0532 555 1234',
-  },
-  {
-    id: 'pt-2',
-    name: 'Elif Kaya',
-    role: 'Ortak',
-    phone: '0544 333 5678',
-  },
-];
-
-const initialWithdrawals: Withdrawal[] = [
-  {
-    id: 'w-1',
-    partnerId: 'pt-1',
-    partnerName: 'Ahmet Yılmaz',
-    amount: 50000,
-    date: '10/05/2026',
-    description: 'Kişisel ihtiyaç çekimi',
-  },
-];
-
 export function FinanceDataProvider({ children }: { children: React.ReactNode }) {
-  const [baslangicBakiyesi, setBaslangicBakiyesi] = useState(980000);
+  const [openingBalance, setOpeningBalance] = useState(980000);
   const [receivables, setReceivables] = useState<Receivable[]>(initialReceivables);
   const [payables, setPayables] = useState<Payable[]>(initialPayables);
-  const [partners, setPartners] = useState<Partner[]>(initialPartners);
-  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(initialWithdrawals);
-  const [cashEntries, setCashEntries] = useState<CashEntry[]>([]);
-
-  const toplamOrtakCekimleri = useMemo(
-    () => withdrawals.reduce((sum, w) => sum + w.amount, 0),
-    [withdrawals]
-  );
-
-  const toplamNakitGiris = useMemo(
-    () => cashEntries.filter((e) => e.type === 'income').reduce((sum, e) => sum + e.amount, 0),
-    [cashEntries]
-  );
-
-  const toplamNakitCikis = useMemo(
-    () => cashEntries.filter((e) => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0),
-    [cashEntries]
-  );
-
-  // openingBalance = başlangıç bakiyesi - ortak çekimleri + nakit girişler - nakit çıkışlar
-  const openingBalance = useMemo(
-    () => baslangicBakiyesi - toplamOrtakCekimleri + toplamNakitGiris - toplamNakitCikis,
-    [baslangicBakiyesi, toplamOrtakCekimleri, toplamNakitGiris, toplamNakitCikis]
-  );
 
   const value = useMemo<FinanceContextValue>(
     () => ({
-      baslangicBakiyesi,
-      setBaslangicBakiyesi,
       openingBalance,
+      setOpeningBalance,
       receivables,
       payables,
-      partners,
-      withdrawals,
-      cashEntries,
       addReceivable: (input) => {
         setReceivables((prev) => [{ id: `r-${Date.now()}`, ...input }, ...prev]);
       },
@@ -193,27 +104,8 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       removePayable: (id) => {
         setPayables((prev) => prev.filter((item) => item.id !== id));
       },
-      addPartner: (input) => {
-        setPartners((prev) => [...prev, { id: `pt-${Date.now()}`, ...input }]);
-      },
-      removePartner: (id) => {
-        setPartners((prev) => prev.filter((item) => item.id !== id));
-        setWithdrawals((prev) => prev.filter((item) => item.partnerId !== id));
-      },
-      addWithdrawal: (input) => {
-        setWithdrawals((prev) => [{ id: `w-${Date.now()}`, ...input }, ...prev]);
-      },
-      removeWithdrawal: (id) => {
-        setWithdrawals((prev) => prev.filter((item) => item.id !== id));
-      },
-      addCashEntry: (input) => {
-        setCashEntries((prev) => [{ id: `ce-${Date.now()}`, ...input }, ...prev]);
-      },
-      removeCashEntry: (id) => {
-        setCashEntries((prev) => prev.filter((item) => item.id !== id));
-      },
     }),
-    [baslangicBakiyesi, openingBalance, receivables, payables, partners, withdrawals, cashEntries]
+    [openingBalance, receivables, payables]
   );
 
   return <FinanceDataContext.Provider value={value}>{children}</FinanceDataContext.Provider>;

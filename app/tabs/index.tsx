@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Alert,
   SafeAreaView,
   ScrollView,
   View,
@@ -18,18 +19,14 @@ const formatTRY = (value: number) =>
   }).format(value);
 
 const formatCompact = (value: number) => {
-  if (Math.abs(value) >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(1)}M`;
-  }
-  if (Math.abs(value) >= 1_000) {
-    return `${(value / 1_000).toFixed(0)}K`;
-  }
+  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
   return value.toString();
 };
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { openingBalance, baslangicBakiyesi, receivables, payables, partners, withdrawals, cashEntries } = useFinanceData();
+  const { openingBalance, setOpeningBalance, receivables, payables } = useFinanceData();
   const today = new Date();
   const in7Days = addDays(today, 7);
   const in30Days = addDays(today, 30);
@@ -43,18 +40,36 @@ export default function DashboardScreen() {
   const overduePayables = countOverdue(payables, today);
   const riskDays = buildRiskDays(openingBalance, receivables, payables, today, 30);
   const netFlow30 = expectedInflow30 - expectedOutflow30;
-  const totalWithdrawals = withdrawals.reduce((sum, w) => sum + w.amount, 0);
-  const totalCashIncome = cashEntries.filter((e) => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
-  const totalCashExpense = cashEntries.filter((e) => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
 
-  const greeting = getGreeting();
+  const handleEditBalance = () => {
+    Alert.prompt(
+      'Bakiyeyi Düzenle',
+      'Kasada bulunan toplam tutarı girin:',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Kaydet',
+          onPress: (text) => {
+            const parsed = Number((text || '').replace(/\./g, '').replace(',', '.'));
+            if (!parsed || parsed < 0) {
+              Alert.alert('Hata', 'Geçerli bir tutar girin.');
+              return;
+            }
+            setOpeningBalance(parsed);
+          },
+        },
+      ],
+      'plain-text',
+      openingBalance.toString()
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.greeting}>{greeting}</Text>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
             <Text style={styles.headerTitle}>Nakit Akış</Text>
           </View>
           <TouchableOpacity
@@ -81,6 +96,9 @@ export default function DashboardScreen() {
           </View>
           <View style={styles.balanceDecorCircle1} />
           <View style={styles.balanceDecorCircle2} />
+          <TouchableOpacity style={styles.editBalanceButton} onPress={handleEditBalance}>
+            <Text style={styles.editBalanceText}>Bakiyeyi Düzenle</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.flowRow}>
@@ -176,36 +194,6 @@ export default function DashboardScreen() {
             </View>
           </TouchableOpacity>
         </View>
-
-        <Text style={styles.sectionTitle}>Kasa Durumu</Text>
-        <TouchableOpacity
-          style={styles.kasaCard}
-          onPress={() => router.push('/tabs/kasa')}
-          activeOpacity={0.7}>
-          <View style={styles.kasaRow}>
-            <Text style={styles.kasaLabel}>Başlangıç Bakiyesi</Text>
-            <Text style={styles.kasaValue}>{formatTRY(baslangicBakiyesi)}</Text>
-          </View>
-          <View style={styles.kasaRow}>
-            <Text style={styles.kasaLabelGreen}>+ Nakit Giriş</Text>
-            <Text style={styles.kasaValueGreen}>{formatTRY(totalCashIncome)}</Text>
-          </View>
-          <View style={styles.kasaRow}>
-            <Text style={styles.kasaLabelRed}>- Nakit Çıkış</Text>
-            <Text style={styles.kasaValueRed}>{formatTRY(totalCashExpense)}</Text>
-          </View>
-          {totalWithdrawals > 0 && (
-            <View style={styles.kasaRow}>
-              <Text style={styles.kasaLabelRed}>- Ortak Çekimleri</Text>
-              <Text style={styles.kasaValueRed}>{formatTRY(totalWithdrawals)}</Text>
-            </View>
-          )}
-          <View style={[styles.kasaRow, styles.kasaTotalRow]}>
-            <Text style={styles.kasaTotalLabel}>Güncel Bakiye</Text>
-            <Text style={styles.kasaTotalValue}>{formatTRY(openingBalance)}</Text>
-          </View>
-          <Text style={styles.kasaLink}>Kasa detaylarını gör</Text>
-        </TouchableOpacity>
 
         {riskDays.length > 0 && (
           <>
@@ -312,6 +300,21 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
+  editBalanceButton: {
+    marginTop: 14,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  editBalanceText: {
+    color: '#93C5FD',
+    fontSize: 12,
+    fontWeight: '600',
+  },
 
   flowRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
   flowCard: {
@@ -334,20 +337,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  flowIconInflow: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#12B76A',
-    lineHeight: 36,
-    textAlign: 'center',
-  },
-  flowIconOutflow: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#F04438',
-    lineHeight: 36,
-    textAlign: 'center',
-  },
+  flowIconInflow: { fontSize: 20, fontWeight: '800', color: '#12B76A', lineHeight: 36, textAlign: 'center' },
+  flowIconOutflow: { fontSize: 20, fontWeight: '800', color: '#F04438', lineHeight: 36, textAlign: 'center' },
   flowTextWrap: { flex: 1 },
   flowLabel: { fontSize: 12, color: '#667085', fontWeight: '500' },
   flowValuePositive: { fontSize: 17, fontWeight: '800', color: '#12B76A', marginTop: 4 },
@@ -441,35 +432,6 @@ const styles = StyleSheet.create({
   overdueLabel: { fontSize: 12, color: '#667085', fontWeight: '500' },
   overdueValueWarn: { fontSize: 22, fontWeight: '800', color: '#B54708', marginTop: 2 },
   overdueValueDanger: { fontSize: 22, fontWeight: '800', color: '#F04438', marginTop: 2 },
-
-  kasaCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#EAECF0',
-    marginBottom: 20,
-  },
-  kasaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-  },
-  kasaLabel: { fontSize: 13, color: '#475467' },
-  kasaLabelGreen: { fontSize: 13, color: '#12B76A', fontWeight: '600' },
-  kasaLabelRed: { fontSize: 13, color: '#F04438', fontWeight: '600' },
-  kasaValue: { fontSize: 13, color: '#101828', fontWeight: '600' },
-  kasaValueGreen: { fontSize: 13, color: '#12B76A', fontWeight: '700' },
-  kasaValueRed: { fontSize: 13, color: '#F04438', fontWeight: '700' },
-  kasaTotalRow: {
-    borderTopWidth: 2,
-    borderTopColor: '#101828',
-    marginTop: 4,
-    paddingTop: 8,
-  },
-  kasaTotalLabel: { fontSize: 14, color: '#101828', fontWeight: '800' },
-  kasaTotalValue: { fontSize: 14, color: '#0C4A6E', fontWeight: '800' },
-  kasaLink: { fontSize: 12, color: '#0F62FE', fontWeight: '600', marginTop: 8, textAlign: 'center' },
 
   riskCard: {
     backgroundColor: '#FFFFFF',
