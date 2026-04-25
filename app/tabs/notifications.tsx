@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useFinanceData } from '@/hooks/use-finance-data';
+import { useAppTheme } from '@/hooks/use-app-theme';
 
 type NotificationItem = {
   id: string;
@@ -25,17 +26,10 @@ const severityColor = {
   danger: '#D92D20',
 };
 
-function formatTRY(value: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
 function buildNotifications(
   receivables: { customerName: string; amount: number; dueDate: string }[],
-  payables: { vendorName: string; amount: number; dueDate: string; category: string }[]
+  payables: { vendorName: string; amount: number; dueDate: string; category: string }[],
+  formatCurrency: (value: number) => string
 ): NotificationItem[] {
   const now = new Date();
   const items: NotificationItem[] = [];
@@ -48,7 +42,7 @@ function buildNotifications(
       items.push({
         id: `r-overdue-${i}`,
         title: 'Geciken tahsilat',
-        description: `${r.customerName}: ${formatTRY(r.amount)} - ${diff * -1} gün gecikmiş`,
+        description: `${r.customerName}: ${formatCurrency(r.amount)} - ${diff * -1} gün gecikmiş`,
         time: 'Şimdi',
         severity: 'danger',
       });
@@ -56,7 +50,7 @@ function buildNotifications(
       items.push({
         id: `r-soon-${i}`,
         title: 'Yaklaşan tahsilat',
-        description: `${r.customerName}: ${formatTRY(r.amount)} - ${diff} gün kaldı`,
+        description: `${r.customerName}: ${formatCurrency(r.amount)} - ${diff} gün kaldı`,
         time: diff === 0 ? 'Bugün' : `${diff} gün sonra`,
         severity: 'warning',
       });
@@ -71,7 +65,7 @@ function buildNotifications(
       items.push({
         id: `p-overdue-${i}`,
         title: 'Geciken ödeme',
-        description: `${p.vendorName} (${p.category}): ${formatTRY(p.amount)} - ${diff * -1} gün gecikmiş`,
+        description: `${p.vendorName} (${p.category}): ${formatCurrency(p.amount)} - ${diff * -1} gün gecikmiş`,
         time: 'Şimdi',
         severity: 'danger',
       });
@@ -79,7 +73,7 @@ function buildNotifications(
       items.push({
         id: `p-soon-${i}`,
         title: 'Yaklaşan ödeme',
-        description: `${p.vendorName} (${p.category}): ${formatTRY(p.amount)} - ${diff} gün kaldı`,
+        description: `${p.vendorName} (${p.category}): ${formatCurrency(p.amount)} - ${diff} gün kaldı`,
         time: diff === 0 ? 'Bugün' : `${diff} gün sonra`,
         severity: 'warning',
       });
@@ -99,13 +93,89 @@ function parseTRDate(dateStr: string) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function makeStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: 16, paddingBottom: 30 },
+    title: { fontSize: 24, fontWeight: '700', color: colors.text },
+    subtitle: { marginTop: 4, marginBottom: 14, color: colors.textSecondary },
+
+    settingsCard: {
+      backgroundColor: colors.card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: 12,
+      marginBottom: 16,
+    },
+    switchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+      paddingVertical: 8,
+    },
+    switchTextGroup: { flex: 1 },
+    switchLabel: { color: colors.text, fontWeight: '700', fontSize: 14 },
+    switchDesc: { color: colors.textSecondary, marginTop: 2, fontSize: 12 },
+    divider: { height: 1, backgroundColor: colors.divider, marginVertical: 4 },
+
+    testButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+      paddingVertical: 12,
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    testButtonText: { color: colors.primaryText, fontWeight: '700', fontSize: 14 },
+
+    sectionTitle: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '700',
+      marginBottom: 10,
+    },
+    emptyCard: {
+      backgroundColor: colors.card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: 20,
+      alignItems: 'center',
+    },
+    emptyText: { color: colors.success, fontWeight: '600', textAlign: 'center' },
+    itemCard: {
+      backgroundColor: colors.card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: 12,
+      marginBottom: 10,
+      flexDirection: 'row',
+      gap: 10,
+    },
+    dot: {
+      width: 10,
+      height: 10,
+      borderRadius: 999,
+      marginTop: 7,
+    },
+    itemBody: { flex: 1 },
+    itemTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+    itemDesc: { color: colors.textSecondary, marginTop: 4, lineHeight: 18 },
+    itemTime: { color: colors.textTertiary, marginTop: 6, fontSize: 12 },
+  });
+}
+
 export default function NotificationsScreen() {
+  const { colors, formatCurrency } = useAppTheme();
   const { receivables, payables } = useFinanceData();
   const [pushEnabled, setPushEnabled] = useState(false);
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [riskAlertEnabled, setRiskAlertEnabled] = useState(true);
 
-  const notifications = buildNotifications(receivables, payables);
+  const styles = makeStyles(colors);
+  const notifications = buildNotifications(receivables, payables, formatCurrency);
 
   useEffect(() => {
     if (pushEnabled) {
@@ -125,6 +195,7 @@ export default function NotificationsScreen() {
             description="Mobil cihazınıza anlık bildirim gönderilir"
             value={pushEnabled}
             onToggle={setPushEnabled}
+            colors={colors}
           />
           <View style={styles.divider} />
           <RowWithSwitch
@@ -132,6 +203,7 @@ export default function NotificationsScreen() {
             description="Günlük özet ve kritik alarmlar"
             value={emailEnabled}
             onToggle={setEmailEnabled}
+            colors={colors}
           />
           <View style={styles.divider} />
           <RowWithSwitch
@@ -139,6 +211,7 @@ export default function NotificationsScreen() {
             description="Bakiye eksiye düşmeden önce uyarır"
             value={riskAlertEnabled}
             onToggle={setRiskAlertEnabled}
+            colors={colors}
           />
         </View>
 
@@ -203,12 +276,15 @@ function RowWithSwitch({
   description,
   value,
   onToggle,
+  colors,
 }: {
   label: string;
   description: string;
   value: boolean;
   onToggle: (val: boolean) => void;
+  colors: ReturnType<typeof useAppTheme>['colors'];
 }) {
+  const styles = makeStyles(colors);
   return (
     <View style={styles.switchRow}>
       <View style={styles.switchTextGroup}>
@@ -219,75 +295,3 @@ function RowWithSwitch({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F6FA' },
-  content: { padding: 16, paddingBottom: 30 },
-  title: { fontSize: 24, fontWeight: '700', color: '#101828' },
-  subtitle: { marginTop: 4, marginBottom: 14, color: '#667085' },
-
-  settingsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#EAECF0',
-    padding: 12,
-    marginBottom: 16,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    paddingVertical: 8,
-  },
-  switchTextGroup: { flex: 1 },
-  switchLabel: { color: '#101828', fontWeight: '700', fontSize: 14 },
-  switchDesc: { color: '#667085', marginTop: 2, fontSize: 12 },
-  divider: { height: 1, backgroundColor: '#F2F4F7', marginVertical: 4 },
-
-  testButton: {
-    backgroundColor: '#0C4A6E',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  testButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
-
-  sectionTitle: {
-    color: '#344054',
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 10,
-  },
-  emptyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#EAECF0',
-    padding: 20,
-    alignItems: 'center',
-  },
-  emptyText: { color: '#12B76A', fontWeight: '600', textAlign: 'center' },
-  itemCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#EAECF0',
-    padding: 12,
-    marginBottom: 10,
-    flexDirection: 'row',
-    gap: 10,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    marginTop: 7,
-  },
-  itemBody: { flex: 1 },
-  itemTitle: { color: '#101828', fontSize: 15, fontWeight: '700' },
-  itemDesc: { color: '#475467', marginTop: 4, lineHeight: 18 },
-  itemTime: { color: '#98A2B3', marginTop: 6, fontSize: 12 },
-});

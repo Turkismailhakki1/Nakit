@@ -5,7 +5,7 @@ import React from 'react';
 import 'react-native-reanimated';
 
 import { FinanceDataProvider, useFinanceData } from '@/hooks/use-finance-data';
-import { useColorScheme } from '@/hooks/use-color-scheme'
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 
 export const unstable_settings = {

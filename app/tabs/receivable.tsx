@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFinanceData } from '@/hooks/use-finance-data';
+import { useAppTheme } from '@/hooks/use-app-theme';
 
 const DOC_TYPES = ['Çek', 'Senet', 'Fatura'] as const;
 type DocType = (typeof DOC_TYPES)[number];
@@ -22,9 +23,65 @@ function formatDatePicker(text: string): string {
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
 }
 
+function makeStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: 16, paddingBottom: 40 },
+    title: { fontSize: 24, fontWeight: '700', color: colors.text },
+    subtitle: { marginTop: 4, marginBottom: 18, color: colors.textSecondary },
+
+    section: { marginBottom: 14 },
+    label: { fontSize: 13, color: colors.textSecondary, marginBottom: 8, fontWeight: '600' },
+    row: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+    half: { flex: 1 },
+
+    pill: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: colors.chipBorder,
+      borderRadius: 10,
+      paddingVertical: 10,
+      alignItems: 'center',
+      backgroundColor: colors.chipBg,
+    },
+    pillActive: {
+      borderColor: colors.chipActiveBorder,
+      backgroundColor: colors.chipActiveBg,
+    },
+    pillText: { color: colors.chipText, fontWeight: '600' },
+    pillTextActive: { color: colors.chipActiveText },
+
+    input: {
+      backgroundColor: colors.inputBg,
+      borderWidth: 1,
+      borderColor: colors.inputBorder,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      color: colors.inputText,
+    },
+    textArea: {
+      minHeight: 90,
+      textAlignVertical: 'top',
+    },
+
+    primaryButton: {
+      marginTop: 8,
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    primaryButtonText: { color: colors.primaryText, fontWeight: '700', fontSize: 15 },
+  });
+}
+
 export default function ReceivableFormScreen() {
   const router = useRouter();
   const { addReceivable } = useFinanceData();
+  const { colors, currencySymbol } = useAppTheme();
+  const styles = makeStyles(colors);
+
   const [docType, setDocType] = useState<DocType>('Çek');
   const [customerName, setCustomerName] = useState('');
   const [documentNo, setDocumentNo] = useState('');
@@ -87,7 +144,7 @@ export default function ReceivableFormScreen() {
           <Text style={styles.label}>Müşteri / Firma</Text>
           <TextInput
             placeholder="Örn: ABC Otomotiv A.Ş."
-            placeholderTextColor="#98A2B3"
+            placeholderTextColor={colors.textTertiary}
             style={styles.input}
             value={customerName}
             onChangeText={setCustomerName}
@@ -98,7 +155,7 @@ export default function ReceivableFormScreen() {
           <Text style={styles.label}>Belge No</Text>
           <TextInput
             placeholder="Örn: ÇK-2026-00124"
-            placeholderTextColor="#98A2B3"
+            placeholderTextColor={colors.textTertiary}
             style={styles.input}
             value={documentNo}
             onChangeText={setDocumentNo}
@@ -107,10 +164,10 @@ export default function ReceivableFormScreen() {
 
         <View style={styles.row}>
           <View style={styles.half}>
-            <Text style={styles.label}>Tutar (TRY)</Text>
+            <Text style={styles.label}>Tutar ({currencySymbol})</Text>
             <TextInput
               placeholder="0"
-              placeholderTextColor="#98A2B3"
+              placeholderTextColor={colors.textTertiary}
               style={styles.input}
               keyboardType="numeric"
               value={amount}
@@ -121,7 +178,7 @@ export default function ReceivableFormScreen() {
             <Text style={styles.label}>Vade Tarihi</Text>
             <TextInput
               placeholder="GG/AA/YYYY"
-              placeholderTextColor="#98A2B3"
+              placeholderTextColor={colors.textTertiary}
               style={styles.input}
               keyboardType="numeric"
               maxLength={10}
@@ -135,7 +192,7 @@ export default function ReceivableFormScreen() {
           <Text style={styles.label}>Tahsil Edilecek Hesap</Text>
           <TextInput
             placeholder="Örn: Garanti TL"
-            placeholderTextColor="#98A2B3"
+            placeholderTextColor={colors.textTertiary}
             style={styles.input}
             value={accountName}
             onChangeText={setAccountName}
@@ -146,7 +203,7 @@ export default function ReceivableFormScreen() {
           <Text style={styles.label}>Not (Opsiyonel)</Text>
           <TextInput
             placeholder="Ek açıklama"
-            placeholderTextColor="#98A2B3"
+            placeholderTextColor={colors.textTertiary}
             style={[styles.input, styles.textArea]}
             multiline
             numberOfLines={4}
@@ -162,54 +219,3 @@ export default function ReceivableFormScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F6FA' },
-  content: { padding: 16, paddingBottom: 40 },
-  title: { fontSize: 24, fontWeight: '700', color: '#101828' },
-  subtitle: { marginTop: 4, marginBottom: 18, color: '#667085' },
-
-  section: { marginBottom: 14 },
-  label: { fontSize: 13, color: '#475467', marginBottom: 8, fontWeight: '600' },
-  row: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-  half: { flex: 1 },
-
-  pill: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#D0D5DD',
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  pillActive: {
-    borderColor: '#0F62FE',
-    backgroundColor: '#E8F0FF',
-  },
-  pillText: { color: '#344054', fontWeight: '600' },
-  pillTextActive: { color: '#0F62FE' },
-
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D0D5DD',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    color: '#101828',
-  },
-  textArea: {
-    minHeight: 90,
-    textAlignVertical: 'top',
-  },
-
-  primaryButton: {
-    marginTop: 8,
-    backgroundColor: '#101828',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  primaryButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
-});

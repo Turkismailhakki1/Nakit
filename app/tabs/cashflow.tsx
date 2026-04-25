@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFinanceData } from '@/hooks/use-finance-data';
+import { useAppTheme } from '@/hooks/use-app-theme';
 
 type CashflowDay = {
   date: string;
@@ -11,15 +12,73 @@ type CashflowDay = {
 
 type DayRange = 7 | 30 | 90;
 
-const formatTRY = (value: number) =>
-  new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 0,
-  }).format(value);
+const makeStyles = (colors: ReturnType<typeof useAppTheme>['colors']) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: 16, paddingBottom: 30 },
+    title: { fontSize: 24, fontWeight: '700', color: colors.text },
+    subtitle: { marginTop: 4, marginBottom: 14, color: colors.textSecondary },
+
+    filtersRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+    filterChip: {
+      borderWidth: 1,
+      borderColor: colors.chipBorder,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: colors.chipBg,
+    },
+    filterChipActive: {
+      borderWidth: 1,
+      borderColor: colors.chipActiveBorder,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: colors.chipActiveBg,
+    },
+    filterChipText: { color: colors.chipText, fontWeight: '600' },
+    filterChipTextActive: { color: colors.chipActiveText, fontWeight: '700' },
+
+    summaryCard: {
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 14,
+    },
+    summaryLabel: { color: colors.textSecondary, fontSize: 13 },
+    summaryValue: { fontSize: 28, color: colors.danger, fontWeight: '800', marginTop: 2 },
+    summaryHint: { color: colors.textSecondary, marginTop: 4 },
+
+    tableHeader: {
+      flexDirection: 'row',
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    headerCell: { flex: 1, color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
+    row: {
+      flexDirection: 'row',
+      paddingVertical: 12,
+      paddingHorizontal: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+      backgroundColor: colors.card,
+    },
+    cell: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '600' },
+    dateCell: { flex: 0.8 },
+    inflow: { color: colors.success },
+    outflow: { color: colors.danger },
+    closing: { color: colors.text },
+    negative: { color: colors.danger, fontWeight: '800' },
+  });
 
 export default function CashflowScreen() {
   const { openingBalance, receivables, payables } = useFinanceData();
+  const { colors, formatCurrency } = useAppTheme();
+  const styles = makeStyles(colors);
   const [dayRange, setDayRange] = useState<DayRange>(7);
 
   const data = buildCashflowRows(openingBalance, receivables, payables, dayRange);
@@ -73,10 +132,10 @@ export default function CashflowScreen() {
           return (
             <View key={day.date} style={styles.row}>
               <Text style={[styles.cell, styles.dateCell]}>{day.date}</Text>
-              <Text style={[styles.cell, styles.inflow]}>{formatTRY(day.inflow)}</Text>
-              <Text style={[styles.cell, styles.outflow]}>{formatTRY(day.outflow)}</Text>
+              <Text style={[styles.cell, styles.inflow]}>{formatCurrency(day.inflow)}</Text>
+              <Text style={[styles.cell, styles.outflow]}>{formatCurrency(day.outflow)}</Text>
               <Text style={[styles.cell, negative ? styles.negative : styles.closing]}>
-                {formatTRY(day.closing)}
+                {formatCurrency(day.closing)}
               </Text>
             </View>
           );
@@ -85,68 +144,6 @@ export default function CashflowScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F6FA' },
-  content: { padding: 16, paddingBottom: 30 },
-  title: { fontSize: 24, fontWeight: '700', color: '#101828' },
-  subtitle: { marginTop: 4, marginBottom: 14, color: '#667085' },
-
-  filtersRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  filterChip: {
-    borderWidth: 1,
-    borderColor: '#D0D5DD',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: '#FFFFFF',
-  },
-  filterChipActive: {
-    borderWidth: 1,
-    borderColor: '#0F62FE',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: '#E8F0FF',
-  },
-  filterChipText: { color: '#344054', fontWeight: '600' },
-  filterChipTextActive: { color: '#0F62FE', fontWeight: '700' },
-
-  summaryCard: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#EAECF0',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 14,
-  },
-  summaryLabel: { color: '#667085', fontSize: 13 },
-  summaryValue: { fontSize: 28, color: '#F04438', fontWeight: '800', marginTop: 2 },
-  summaryHint: { color: '#475467', marginTop: 4 },
-
-  tableHeader: {
-    flexDirection: 'row',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E4E7EC',
-  },
-  headerCell: { flex: 1, color: '#667085', fontSize: 12, fontWeight: '700' },
-  row: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F4F7',
-    backgroundColor: '#FFFFFF',
-  },
-  cell: { flex: 1, color: '#101828', fontSize: 12, fontWeight: '600' },
-  dateCell: { flex: 0.8 },
-  inflow: { color: '#12B76A' },
-  outflow: { color: '#F04438' },
-  closing: { color: '#101828' },
-  negative: { color: '#F04438', fontWeight: '800' },
-});
 
 function parseTRDate(dateStr: string) {
   const [day, month, year] = dateStr.split('/').map(Number);
