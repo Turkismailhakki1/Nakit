@@ -39,12 +39,24 @@ export type Withdrawal = {
   description: string;
 };
 
+export type CashEntry = {
+  id: string;
+  type: 'income' | 'expense';
+  amount: number;
+  date: string; // DD/MM/YYYY
+  description: string;
+  category: string;
+};
+
 type FinanceContextValue = {
+  initialBalance: number;
+  setInitialBalance: (amount: number) => void;
   openingBalance: number;
   receivables: Receivable[];
   payables: Payable[];
   partners: Partner[];
   withdrawals: Withdrawal[];
+  cashEntries: CashEntry[];
   addReceivable: (input: Omit<Receivable, 'id'>) => void;
   addPayable: (input: Omit<Payable, 'id'>) => void;
   removeReceivable: (id: string) => void;
@@ -53,6 +65,8 @@ type FinanceContextValue = {
   removePartner: (id: string) => void;
   addWithdrawal: (input: Omit<Withdrawal, 'id'>) => void;
   removeWithdrawal: (id: string) => void;
+  addCashEntry: (input: Omit<CashEntry, 'id'>) => void;
+  removeCashEntry: (id: string) => void;
 };
 
 const FinanceDataContext = createContext<FinanceContextValue | null>(null);
@@ -129,19 +143,47 @@ const initialWithdrawals: Withdrawal[] = [
 ];
 
 export function FinanceDataProvider({ children }: { children: React.ReactNode }) {
+  const [initialBalance, setInitialBalanceRaw] = useState(980000);
   const [receivables, setReceivables] = useState<Receivable[]>(initialReceivables);
   const [payables, setPayables] = useState<Payable[]>(initialPayables);
   const [partners, setPartners] = useState<Partner[]>(initialPartners);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(initialWithdrawals);
-  const openingBalance = 980000;
+  const [cashEntries, setCashEntries] = useState<CashEntry[]>([]);
+
+  const totalWithdrawals = useMemo(
+    () => withdrawals.reduce((sum, w) => sum + w.amount, 0),
+    [withdrawals]
+  );
+
+  const totalCashIncome = useMemo(
+    () => cashEntries.filter((e) => e.type === 'income').reduce((sum, e) => sum + e.amount, 0),
+    [cashEntries]
+  );
+
+  const totalCashExpense = useMemo(
+    () => cashEntries.filter((e) => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0),
+    [cashEntries]
+  );
+
+  const openingBalance = useMemo(
+    () => initialBalance - totalWithdrawals + totalCashIncome - totalCashExpense,
+    [initialBalance, totalWithdrawals, totalCashIncome, totalCashExpense]
+  );
+
+  const setInitialBalance = (amount: number) => {
+    setInitialBalanceRaw(amount);
+  };
 
   const value = useMemo<FinanceContextValue>(
     () => ({
+      initialBalance,
+      setInitialBalance,
       openingBalance,
       receivables,
       payables,
       partners,
       withdrawals,
+      cashEntries,
       addReceivable: (input) => {
         setReceivables((prev) => [{ id: `r-${Date.now()}`, ...input }, ...prev]);
       },
@@ -167,8 +209,14 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       removeWithdrawal: (id) => {
         setWithdrawals((prev) => prev.filter((item) => item.id !== id));
       },
+      addCashEntry: (input) => {
+        setCashEntries((prev) => [{ id: `ce-${Date.now()}`, ...input }, ...prev]);
+      },
+      removeCashEntry: (id) => {
+        setCashEntries((prev) => prev.filter((item) => item.id !== id));
+      },
     }),
-    [receivables, payables, partners, withdrawals]
+    [initialBalance, openingBalance, receivables, payables, partners, withdrawals, cashEntries]
   );
 
   return <FinanceDataContext.Provider value={value}>{children}</FinanceDataContext.Provider>;

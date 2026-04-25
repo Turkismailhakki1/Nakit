@@ -29,7 +29,7 @@ const formatCompact = (value: number) => {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { openingBalance, receivables, payables, partners, withdrawals } = useFinanceData();
+  const { openingBalance, initialBalance, receivables, payables, partners, withdrawals, cashEntries } = useFinanceData();
   const today = new Date();
   const in7Days = addDays(today, 7);
   const in30Days = addDays(today, 30);
@@ -44,6 +44,8 @@ export default function DashboardScreen() {
   const riskDays = buildRiskDays(openingBalance, receivables, payables, today, 30);
   const netFlow30 = expectedInflow30 - expectedOutflow30;
   const totalWithdrawals = withdrawals.reduce((sum, w) => sum + w.amount, 0);
+  const totalCashIncome = cashEntries.filter((e) => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
+  const totalCashExpense = cashEntries.filter((e) => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
 
   const greeting = getGreeting();
 
@@ -175,24 +177,35 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {partners.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Ortak Çekimleri</Text>
-            <TouchableOpacity
-              style={styles.partnerSummaryCard}
-              onPress={() => router.push('/tabs/partners')}
-              activeOpacity={0.7}>
-              <View style={styles.partnerSummaryLeft}>
-                <Text style={styles.partnerSummaryLabel}>Toplam Çekim</Text>
-                <Text style={styles.partnerSummaryValue}>{formatTRY(totalWithdrawals)}</Text>
-              </View>
-              <View style={styles.partnerSummaryRight}>
-                <Text style={styles.partnerCountValue}>{partners.length}</Text>
-                <Text style={styles.partnerCountLabel}>Ortak</Text>
-              </View>
-            </TouchableOpacity>
-          </>
-        )}
+        <Text style={styles.sectionTitle}>Kasa Durumu</Text>
+        <TouchableOpacity
+          style={styles.kasaCard}
+          onPress={() => router.push('/tabs/kasa')}
+          activeOpacity={0.7}>
+          <View style={styles.kasaRow}>
+            <Text style={styles.kasaLabel}>Başlangıç Bakiyesi</Text>
+            <Text style={styles.kasaValue}>{formatTRY(initialBalance)}</Text>
+          </View>
+          <View style={styles.kasaRow}>
+            <Text style={styles.kasaLabelGreen}>+ Nakit Giriş</Text>
+            <Text style={styles.kasaValueGreen}>{formatTRY(totalCashIncome)}</Text>
+          </View>
+          <View style={styles.kasaRow}>
+            <Text style={styles.kasaLabelRed}>- Nakit Çıkış</Text>
+            <Text style={styles.kasaValueRed}>{formatTRY(totalCashExpense)}</Text>
+          </View>
+          {totalWithdrawals > 0 && (
+            <View style={styles.kasaRow}>
+              <Text style={styles.kasaLabelRed}>- Ortak Çekimleri</Text>
+              <Text style={styles.kasaValueRed}>{formatTRY(totalWithdrawals)}</Text>
+            </View>
+          )}
+          <View style={[styles.kasaRow, styles.kasaTotalRow]}>
+            <Text style={styles.kasaTotalLabel}>Güncel Bakiye</Text>
+            <Text style={styles.kasaTotalValue}>{formatTRY(openingBalance)}</Text>
+          </View>
+          <Text style={styles.kasaLink}>Kasa detaylarını gör</Text>
+        </TouchableOpacity>
 
         {riskDays.length > 0 && (
           <>
@@ -429,23 +442,34 @@ const styles = StyleSheet.create({
   overdueValueWarn: { fontSize: 22, fontWeight: '800', color: '#B54708', marginTop: 2 },
   overdueValueDanger: { fontSize: 22, fontWeight: '800', color: '#F04438', marginTop: 2 },
 
-  partnerSummaryCard: {
+  kasaCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: '#EAECF0',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 20,
   },
-  partnerSummaryLeft: { flex: 1 },
-  partnerSummaryLabel: { fontSize: 12, color: '#667085', fontWeight: '500' },
-  partnerSummaryValue: { fontSize: 20, fontWeight: '800', color: '#0C4A6E', marginTop: 4 },
-  partnerSummaryRight: { alignItems: 'center' },
-  partnerCountValue: { fontSize: 24, fontWeight: '800', color: '#101828' },
-  partnerCountLabel: { fontSize: 11, color: '#667085', fontWeight: '500' },
+  kasaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  kasaLabel: { fontSize: 13, color: '#475467' },
+  kasaLabelGreen: { fontSize: 13, color: '#12B76A', fontWeight: '600' },
+  kasaLabelRed: { fontSize: 13, color: '#F04438', fontWeight: '600' },
+  kasaValue: { fontSize: 13, color: '#101828', fontWeight: '600' },
+  kasaValueGreen: { fontSize: 13, color: '#12B76A', fontWeight: '700' },
+  kasaValueRed: { fontSize: 13, color: '#F04438', fontWeight: '700' },
+  kasaTotalRow: {
+    borderTopWidth: 2,
+    borderTopColor: '#101828',
+    marginTop: 4,
+    paddingTop: 8,
+  },
+  kasaTotalLabel: { fontSize: 14, color: '#101828', fontWeight: '800' },
+  kasaTotalValue: { fontSize: 14, color: '#0C4A6E', fontWeight: '800' },
+  kasaLink: { fontSize: 12, color: '#0F62FE', fontWeight: '600', marginTop: 8, textAlign: 'center' },
 
   riskCard: {
     backgroundColor: '#FFFFFF',
