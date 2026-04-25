@@ -6,7 +6,7 @@ export type Receivable = {
   documentType: 'Çek' | 'Senet' | 'Fatura';
   documentNo: string;
   amount: number;
-  dueDate: string; // DD/MM/YYYY
+  dueDate: string;
   accountName: string;
   note?: string;
 };
@@ -16,11 +16,33 @@ export type Payable = {
   category: string;
   vendorName: string;
   amount: number;
-  dueDate: string; // DD/MM/YYYY
+  dueDate: string;
   priority: 'Düşük' | 'Orta' | 'Yüksek' | 'Kritik';
   accountName: string;
   note?: string;
   recurring?: 'Yok' | 'Haftalık' | 'Aylık';
+};
+
+export type Partner = {
+  id: string;
+  name: string;
+  phone: string;
+};
+
+export type CashLog = {
+  id: string;
+  type: 'withdrawal' | 'deposit';
+  amount: number;
+  date: string;
+  description: string;
+  partnerId?: string;
+  partnerName?: string;
+};
+
+export type AppSettings = {
+  theme: 'light' | 'dark' | 'system';
+  currency: 'TRY' | 'USD' | 'EUR' | 'GBP';
+  notificationDaysBefore: number;
 };
 
 type FinanceContextValue = {
@@ -28,10 +50,18 @@ type FinanceContextValue = {
   setOpeningBalance: (amount: number) => void;
   receivables: Receivable[];
   payables: Payable[];
+  partners: Partner[];
+  cashLogs: CashLog[];
+  settings: AppSettings;
   addReceivable: (input: Omit<Receivable, 'id'>) => void;
   addPayable: (input: Omit<Payable, 'id'>) => void;
   removeReceivable: (id: string) => void;
   removePayable: (id: string) => void;
+  addPartner: (input: Omit<Partner, 'id'>) => void;
+  removePartner: (id: string) => void;
+  addCashLog: (input: Omit<CashLog, 'id'>) => void;
+  removeCashLog: (id: string) => void;
+  updateSettings: (partial: Partial<AppSettings>) => void;
 };
 
 const FinanceDataContext = createContext<FinanceContextValue | null>(null);
@@ -81,10 +111,22 @@ const initialPayables: Payable[] = [
   },
 ];
 
+const initialPartners: Partner[] = [
+  { id: 'pt-1', name: 'Ahmet Yılmaz', phone: '0532 555 1234' },
+  { id: 'pt-2', name: 'Elif Kaya', phone: '0544 333 5678' },
+];
+
 export function FinanceDataProvider({ children }: { children: React.ReactNode }) {
   const [openingBalance, setOpeningBalance] = useState(980000);
   const [receivables, setReceivables] = useState<Receivable[]>(initialReceivables);
   const [payables, setPayables] = useState<Payable[]>(initialPayables);
+  const [partners, setPartners] = useState<Partner[]>(initialPartners);
+  const [cashLogs, setCashLogs] = useState<CashLog[]>([]);
+  const [settings, setSettings] = useState<AppSettings>({
+    theme: 'system',
+    currency: 'TRY',
+    notificationDaysBefore: 3,
+  });
 
   const value = useMemo<FinanceContextValue>(
     () => ({
@@ -92,6 +134,9 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       setOpeningBalance,
       receivables,
       payables,
+      partners,
+      cashLogs,
+      settings,
       addReceivable: (input) => {
         setReceivables((prev) => [{ id: `r-${Date.now()}`, ...input }, ...prev]);
       },
@@ -104,8 +149,38 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       removePayable: (id) => {
         setPayables((prev) => prev.filter((item) => item.id !== id));
       },
+      addPartner: (input) => {
+        setPartners((prev) => [...prev, { id: `pt-${Date.now()}`, ...input }]);
+      },
+      removePartner: (id) => {
+        setPartners((prev) => prev.filter((item) => item.id !== id));
+      },
+      addCashLog: (input) => {
+        setCashLogs((prev) => [{ id: `cl-${Date.now()}`, ...input }, ...prev]);
+        if (input.type === 'withdrawal') {
+          setOpeningBalance((prev) => prev - input.amount);
+        } else {
+          setOpeningBalance((prev) => prev + input.amount);
+        }
+      },
+      removeCashLog: (id) => {
+        setCashLogs((prev) => {
+          const entry = prev.find((e) => e.id === id);
+          if (entry) {
+            if (entry.type === 'withdrawal') {
+              setOpeningBalance((p) => p + entry.amount);
+            } else {
+              setOpeningBalance((p) => p - entry.amount);
+            }
+          }
+          return prev.filter((item) => item.id !== id);
+        });
+      },
+      updateSettings: (partial) => {
+        setSettings((prev) => ({ ...prev, ...partial }));
+      },
     }),
-    [openingBalance, receivables, payables]
+    [openingBalance, receivables, payables, partners, cashLogs, settings]
   );
 
   return <FinanceDataContext.Provider value={value}>{children}</FinanceDataContext.Provider>;
