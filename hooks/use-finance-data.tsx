@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 export type Receivable = {
   id: string;
@@ -45,27 +46,36 @@ export type AppSettings = {
   notificationDaysBefore: number;
 };
 
-type FinanceContextValue = {
-  openingBalance: number;
-  setOpeningBalance: (amount: number) => void;
-  receivables: Receivable[];
-  payables: Payable[];
-  partners: Partner[];
-  cashLogs: CashLog[];
-  settings: AppSettings;
-  addReceivable: (input: Omit<Receivable, 'id'>) => void;
-  addPayable: (input: Omit<Payable, 'id'>) => void;
-  removeReceivable: (id: string) => void;
-  removePayable: (id: string) => void;
-  addPartner: (input: Omit<Partner, 'id'>) => void;
-  removePartner: (id: string) => void;
-  addCashLog: (input: Omit<CashLog, 'id'>) => void;
-  removeCashLog: (id: string) => void;
-  updateSettings: (partial: Partial<AppSettings>) => void;
-};
+// Storage keys
+const KEYS = {
+  openingBalance: 'finance:openingBalance',
+  receivables: 'finance:receivables',
+  payables: 'finance:payables',
+  partners: 'finance:partners',
+  cashLogs: 'finance:cashLogs',
+  settings: 'finance:settings',
+} as const;
 
-const FinanceDataContext = createContext<FinanceContextValue | null>(null);
+// Helpers
+async function load<T>(key: string, fallback: T): Promise<T> {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    if (raw === null) return fallback;
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
 
+async function save(key: string, value: unknown): Promise<void> {
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // storage full veya başka hata — sessizce geç
+  }
+}
+
+// Initial data (sadece ilk kurulumda kullanılır)
 const initialReceivables: Receivable[] = [
   {
     id: 'r-1',
@@ -116,20 +126,104 @@ const initialPartners: Partner[] = [
   { id: 'pt-2', name: 'Elif Kaya', phone: '0544 333 5678' },
 ];
 
+const initialSettings: AppSettings = {
+  theme: 'system',
+  currency: 'TRY',
+  notificationDaysBefore: 3,
+};
+
+type FinanceContextValue = {
+  isLoading: boolean;
+  openingBalance: number;
+  setOpeningBalance: (amount: number) => void;
+  receivables: Receivable[];
+  payables: Payable[];
+  partners: Partner[];
+  cashLogs: CashLog[];
+  settings: AppSettings;
+  addReceivable: (input: Omit<Receivable, 'id'>) => void;
+  addPayable: (input: Omit<Payable, 'id'>) => void;
+  removeReceivable: (id: string) => void;
+  removePayable: (id: string) => void;
+  addPartner: (input: Omit<Partner, 'id'>) => void;
+  removePartner: (id: string) => void;
+  addCashLog: (input: Omit<CashLog, 'id'>) => void;
+  removeCashLog: (id: string) => void;
+  updateSettings: (partial: Partial<AppSettings>) => void;
+};
+
+const FinanceDataContext = createContext<FinanceContextValue | null>(null);
+
 export function FinanceDataProvider({ children }: { children: React.ReactNode }) {
-  const [openingBalance, setOpeningBalance] = useState(980000);
+  const [isLoading, setIsLoading] = useState(true);
+  const [openingBalance, setOpeningBalanceState] = useState(980000);
   const [receivables, setReceivables] = useState<Receivable[]>(initialReceivables);
   const [payables, setPayables] = useState<Payable[]>(initialPayables);
   const [partners, setPartners] = useState<Partner[]>(initialPartners);
   const [cashLogs, setCashLogs] = useState<CashLog[]>([]);
-  const [settings, setSettings] = useState<AppSettings>({
-    theme: 'system',
-    currency: 'TRY',
-    notificationDaysBefore: 3,
-  });
+  const [settings, setSettings] = useState<AppSettings>(initialSettings);
+
+  // Uygulama açılınca AsyncStorage'dan yükle
+  useEffect(() => {
+    (async () => {
+      const [
+        savedBalance,
+        savedReceivables,
+        savedPayables,
+        savedPartners,
+        savedCashLogs,
+        savedSettings,
+      ] = await Promise.all([
+        load<number>(KEYS.openingBalance, 980000),
+        load<Receivable[]>(KEYS.receivables, initialReceivables),
+        load<Payable[]>(KEYS.payables, initialPayables),
+        load<Partner[]>(KEYS.partners, initialPartners),
+        load<CashLog[]>(KEYS.cashLogs, []),
+        load<AppSettings>(KEYS.settings, initialSettings),
+      ]);
+
+      setOpeningBalanceState(savedBalance);
+      setReceivables(savedReceivables);
+      setPayables(savedPayables);
+      setPartners(savedPartners);
+      setCashLogs(savedCashLogs);
+      setSettings(savedSettings);
+      setIsLoading(false);
+    })();
+  }, []);
+
+  // Her state değiştiğinde AsyncStorage'a kaydet
+  useEffect(() => {
+    if (!isLoading) save(KEYS.openingBalance, openingBalance);
+  }, [openingBalance, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) save(KEYS.receivables, receivables);
+  }, [receivables, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) save(KEYS.payables, payables);
+  }, [payables, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) save(KEYS.partners, partners);
+  }, [partners, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) save(KEYS.cashLogs, cashLogs);
+  }, [cashLogs, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) save(KEYS.settings, settings);
+  }, [settings, isLoading]);
+
+  const setOpeningBalance = useCallback((amount: number) => {
+    setOpeningBalanceState(amount);
+  }, []);
 
   const value = useMemo<FinanceContextValue>(
     () => ({
+      isLoading,
       openingBalance,
       setOpeningBalance,
       receivables,
@@ -156,11 +250,12 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         setPartners((prev) => prev.filter((item) => item.id !== id));
       },
       addCashLog: (input) => {
-        setCashLogs((prev) => [{ id: `cl-${Date.now()}`, ...input }, ...prev]);
+        const newLog: CashLog = { id: `cl-${Date.now()}`, ...input };
+        setCashLogs((prev) => [newLog, ...prev]);
         if (input.type === 'withdrawal') {
-          setOpeningBalance((prev) => prev - input.amount);
+          setOpeningBalanceState((prev) => prev - input.amount);
         } else {
-          setOpeningBalance((prev) => prev + input.amount);
+          setOpeningBalanceState((prev) => prev + input.amount);
         }
       },
       removeCashLog: (id) => {
@@ -168,9 +263,9 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           const entry = prev.find((e) => e.id === id);
           if (entry) {
             if (entry.type === 'withdrawal') {
-              setOpeningBalance((p) => p + entry.amount);
+              setOpeningBalanceState((p) => p + entry.amount);
             } else {
-              setOpeningBalance((p) => p - entry.amount);
+              setOpeningBalanceState((p) => p - entry.amount);
             }
           }
           return prev.filter((item) => item.id !== id);
@@ -180,7 +275,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         setSettings((prev) => ({ ...prev, ...partial }));
       },
     }),
-    [openingBalance, receivables, payables, partners, cashLogs, settings]
+    [isLoading, openingBalance, setOpeningBalance, receivables, payables, partners, cashLogs, settings]
   );
 
   return <FinanceDataContext.Provider value={value}>{children}</FinanceDataContext.Provider>;
